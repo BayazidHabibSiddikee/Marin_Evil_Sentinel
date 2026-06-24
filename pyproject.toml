@@ -1,0 +1,7 @@
+[project]
+name = "marin-kitagawa"
+version = "0.1.0"
+description = "Marin Kitagawa AI Study Partner"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []

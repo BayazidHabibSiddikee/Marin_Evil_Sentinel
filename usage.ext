@@ -1,0 +1,39 @@
+Install dependencies first:
+
+```bash
+pip install pymongo chromadb langchain-community langchain-huggingface sentence-transformers
+```
+
+Start MongoDB:
+```bash
+# Fedora
+sudo systemctl start mongod
+```
+
+---
+
+### How everything works now
+
+**ChromaDB — never rebuilds:**
+```
+First run with new PDF → indexes it → saves to chroma_db/
+Second run → loads instantly, checks if new PDFs added
+Drop new PDF in doc/ → only that PDF gets indexed, rest untouched
+```
+
+It tracks which files it already indexed in `chroma_db/indexed_sources.json`. Adding a new book = just drop it in `doc/`, restart Marin — done.
+
+**MongoDB — replaces history.json:**
+```
+MongoDB running  → saves to marin_db.chat_history collection
+MongoDB offline  → silently falls back to history.json
+                   (so it never crashes if mongo is down)
+```
+
+**RAG in conversation:**
+When you ask Marin something, it:
+1. Searches ChromaDB for relevant chunks from your books
+2. Injects them into the prompt as `RELEVANT BOOK CONTEXT`
+3. Marin answers naturally using that knowledge + her personality
+
+So if you put a Python book in `doc/`, asking "explain decorators" will pull the relevant pages and Marin explains it in her style.

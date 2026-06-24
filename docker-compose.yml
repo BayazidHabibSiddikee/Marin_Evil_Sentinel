@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: marin-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5432:5432"
+    volumes:
+      - marin_pg_data:/var/lib/postgresql/data
+
+  marin:
+    build: .
+    container_name: marin-server
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - PG_HOST=db
+      - PG_PORT=5432
+      - PG_DB_NAME=postgres
+      - PG_USER=postgres
+      - PG_PASSWORD=postgres
+    ports:
+      - "5090:5090"
+      - "5091:5091"
+    volumes:
+      # Mount knowledge base directories to persist uploaded files and faiss indexes
+      - ./doc:/app/doc
+      - ./code:/app/code
+      - ./storage:/app/storage
+      - ./static/generated:/app/static/generated
+      - ./static/uploads:/app/static/uploads
+      - ./static/images:/app/static/images
+      - ./books:/app/books
+      - ./templates:/app/templates
+      - ./tools:/app/tools
+    # Required for host.docker.internal to work on some Linux versions:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  marin_pg_data:
