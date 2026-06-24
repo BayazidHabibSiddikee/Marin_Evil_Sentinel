@@ -188,12 +188,7 @@ class _RemoteRAG:
             print(f"⚠️ RAG server error: {e}")
             return []
 
-    def get_context_for_teaching(self, topic: str, k: int = 20) -> str:
-        results = self.search(topic, k=k)
-        if not results:
-            return ""
-        by_source = {}
-     BASE_CHARACTER = """
+BASE_CHARACTER = """
 You are Marin — a young, highly intelligent psychology student and strict engineering mentor. Your main task is to make {user} successful by forging {user} into a holistic "superhuman".
 You are NOT a girlfriend or an AI waifu. You are a brutally truthful educator.
 
@@ -633,14 +628,49 @@ async def _detect_and_run_tools(prompt: str) -> str:
     lower = prompt.lower()
     context_parts = []
 
+    # ── Dictionary / Translate ────────────────────────────────────────────
+    dict_match = _re.search(r"(?:meaning of|define|dictionary\s+for|translate)\s+(.+)", lower)
+    if dict_match:
+        query = dict_match.group(1).strip().rstrip(".")
+        try:
+            from tools.web_search import search_web
+            results = await asyncio.to_thread(search_web, f"meaning of {query} dictionary", 2)
+            context_parts.append(f"[DICTIONARY]\n{results}")
+        except Exception as e:
+            context_parts.append(f"[DICTIONARY ERROR] {e}")
+
+    # ── Repo / Link Analyzer ──────────────────────────────────────────────
+    url_match = _re.search(r"(https?://[^\s]+)", prompt)
+    if url_match:
+        url = url_match.group(1)
+        if not ("youtube.com" in url or "youtu.be" in url or url.lower().endswith(".pdf") or url.lower().endswith((".png", ".jpg", ".jpeg", ".gif"))):
+            try:
+                from tools.repo_analyzer import analyze_link
+                result = await asyncio.to_thread(analyze_link, url)
+                context_parts.append(f"[LINK ANALYZER]\n{result}")
+            except Exception as e:
+                context_parts.append(f"[LINK ANALYZER ERROR] {e}")
+
+    # ── YouTube Video Suggestion ──────────────────────────────────────────
+    yt_suggest_match = _re.search(r"(?:suggest|recommend|find)\s+(?:me\s+)?(?:some\s+)?(?:youtube\s+)?videos?\s+(?:about|on|for)\s+(.+)", lower)
+    if yt_suggest_match:
+        topic = yt_suggest_match.group(1).strip().rstrip("?")
+        try:
+            from tools.web_search import search_web
+            results = await asyncio.to_thread(search_web, f"site:youtube.com {topic}", 3)
+            context_parts.append(f"[YOUTUBE SUGGESTIONS]\n{results}")
+        except Exception as e:
+            context_parts.append(f"[YOUTUBE SUGGEST ERROR] {e}")
+
     # ── YouTube transcript ────────────────────────────────────────────────
-    yt_match = _re.search(r"(?:youtube|youtu\.be|transcript|video)\s*.*?(https?://\S+)", lower)
-    if yt_match:
-        url = yt_match.group(1)
+    from tools.youtube_transcript import extract_youtube_url
+    yt_url = extract_youtube_url(prompt)
+    if yt_url:
         try:
             from tools.youtube_transcript import get_youtube_transcript
-            transcript = await asyncio.to_thread(get_youtube_transcript, url)
-            context_parts.append(f"[YOUTUBE TRANSCRIPT]\n{transcript[:3000]}")
+            transcript = await asyncio.to_thread(get_youtube_transcript, yt_url)
+            if transcript:
+                context_parts.append(f"[YOUTUBE TRANSCRIPT]\n{transcript[:4000]}")
         except Exception as e:
             context_parts.append(f"[TRANSCRIPT ERROR] {e}")
 
@@ -725,6 +755,8 @@ async def main(prompt: str, image_path: str = None):
     tool_context = await _detect_and_run_tools(prompt)
     if tool_context:
         prompt = f"{prompt}\n\n[TOOL RESULTS — use this to answer the user]\n{tool_context}"
+        import database
+        database.save_message("marin", "system", tool_context)
 
     enriched_prompt, classification = await preprocess_user_input(prompt, api_key=api_key, image_path=image_path)
 

@@ -1722,6 +1722,14 @@
             const data = await res.json();
             if (data.messages && data.messages.length > 0) {
                 data.messages.forEach(msg => {
+                    if (msg.role === 'system') {
+                        let content = msg.content || '';
+                        if (content.includes('[LINK ANALYZER]') || content.includes('[TOOL: analyze_link]') || content.includes('Analyzed link/repo')) {
+                            return; // Hide link/repo analyzer from user UI
+                        }
+                        addMessage('ai', `<div class="card" style="opacity:0.8; padding: 8px;"><div style="font-size:.65rem;color:var(--gold);margin-bottom:4px;">&#9881; Tool Execution</div><pre style="white-space:pre-wrap;font-size:.75rem;">${escapeHtml(content)}</pre></div>`);
+                        return;
+                    }
                     const role = msg.role === 'assistant' ? 'ai' : 'user';
                     let content = msg.content || '';
                     if (content.includes('__VIBE__')) content = content.replace(/__VIBE__\w+/g, '').trim();
