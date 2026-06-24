@@ -41,12 +41,23 @@ except ImportError:
     DOCX_AVAILABLE = False
     print("⚠️ docx2txt not installed — .docx skipped. Run: pip install docx2txt")
 
+try:
+    from rank_bm25 import BM25Okapi
+    BM25_AVAILABLE = True
+except ImportError:
+    BM25_AVAILABLE = False
+    print("⚠️ rank-bm25 not installed — BM25 hybrid search disabled")
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # PATHS
 # ═══════════════════════════════════════════════════════════════════════════════
 try:
-    from config import BASE_DIR, DOC_DIR, BOOKS_DIR, CODE_DIR, FAISS_DIR, get_books_size_mb
+    from config import (
+        BASE_DIR, DOC_DIR, BOOKS_DIR, CODE_DIR, FAISS_DIR,
+        get_books_size_mb, get_doc_size_mb, get_kb_size_mb,
+        TOTAL_KB_MAX_MB, BOOKS_MAX_MB,
+    )
     DOC_DIR = Path(DOC_DIR)
     BOOKS_DIR = Path(BOOKS_DIR)
     CODE_DIR = Path(CODE_DIR)
@@ -57,6 +68,11 @@ except ImportError:
     BOOKS_DIR = Path(BASE_DIR) / "books"
     CODE_DIR  = Path(BASE_DIR) / "code"
     FAISS_DIR = Path(BASE_DIR) / "storage" / "faiss_db"
+    TOTAL_KB_MAX_MB = 200
+    BOOKS_MAX_MB    = 96
+    def get_books_size_mb(): return 0.0
+    def get_doc_size_mb():   return 0.0
+    def get_kb_size_mb():    return 0.0
 
 DOC_DIR.mkdir(exist_ok=True)
 BOOKS_DIR.mkdir(exist_ok=True)
@@ -127,13 +143,19 @@ class KnowledgeBase:
     """
     Unified FAISS index over doc/ and code/.
     Uses raw FAISS with mmap + lazy embedding loading to keep RAM low.
+
+    Retrieval pipeline (3 improvements):
+      1. Smart contextual chunking — paragraph-aware boundaries + section metadata
+      2. Hybrid search — FAISS vector search + BM25 keyword search fused via RRF
+      3. Cross-encoder re-ranking — ms-marco MiniLM scores top candidates
     """
 
     MANIFEST_PATH   = FAISS_DIR / "manifest.json"
-    DOC_CHUNK_SIZE  = 450
-    DOC_OVERLAP     = 30   # reduced overlap = fewer vectors
-    CODE_CHUNK_SIZE = 300
-    CODE_OVERLAP    = 40
+    # Improvement 1: larger, more coherent chunks
+    DOC_CHUNK_SIZE  = 700   # was 450 — captures more context per chunk
+    DOC_OVERLAP     = 60    # was 30  — better continuity across boundaries
+    CODE_CHUNK_SIZE = 400   # was 300
+    CODE_OVERLAP    = 60    # was 40
 
     def __init__(self):
         self._raw_index = None      # raw faiss.Index (mmap'd)
@@ -142,6 +164,12 @@ class KnowledgeBase:
         self.manifest: Dict[str, Any] = {"indexed": [], "failed": []}
         self._lc_vectorstore = None  # LangChain FAISS wrapper (used only during indexing)
         self._embeddings = None
+        # Improvement 2: BM25 index
+        self._bm25_index  = None    # BM25Okapi instance
+        self._bm25_corpus = []      # tokenised document list (parallel to _bm25_docs)
+        self._bm25_docs   = []      # raw result dicts (parallel to _bm25_corpus)
+        # Improvement 3: cross-encoder re-ranker
+        self._reranker    = None
         self._boot()
 
     # ── Startup ───────────────────────────────────────────────────────────────
@@ -385,11 +413,20 @@ class KnowledgeBase:
                 chunk_overlap=self.CODE_OVERLAP,
                 separators=["\n\nclass ", "\n\ndef ", "\n\n", "\n", " ", ""],
             )
+        # Improvement 1: paragraph-aware separators for docs
         return RecursiveCharacterTextSplitter(
             chunk_size=self.DOC_CHUNK_SIZE,
             chunk_overlap=self.DOC_OVERLAP,
-            separators=["\n\n", "\n", ". ", " ", ""],
+            separators=["\n\n\n", "\n\n", "\n", ". ", "! ", "? ", " ", ""],
         )
+
+    def _extract_section_header(self, text: str) -> str:
+        """Improvement 1: extract the nearest heading before this chunk."""
+        for line in reversed(text.split("\n")):
+            stripped = line.strip()
+            if stripped.startswith(("# ", "## ", "### ")):
+                return stripped.lstrip("# ").strip()
+        return ""
 
     # ── Core indexer ──────────────────────────────────────────────────────────
     def _index_single_file(self, path: Path):
@@ -409,6 +446,11 @@ class KnowledgeBase:
                 clean = c.page_content.strip()
                 if len(clean) > 10 and any(ch.isalnum() for ch in clean):
                     c.page_content = clean
+                    # Improvement 1: annotate chunk with nearest section heading
+                    if not c.metadata.get("section"):
+                        section = self._extract_section_header(clean)
+                        if section:
+                            c.metadata["section"] = section
                     valid.append(c)
 
             if not valid:
@@ -438,24 +480,118 @@ class KnowledgeBase:
                 pass
             _compact()
 
+    # ── Improvement 2: BM25 index ─────────────────────────────────────────────
+    def _build_bm25(self):
+        """Build a BM25 index over the entire docstore. Fast (<0.5s for 5000 chunks)."""
+        if not BM25_AVAILABLE or self._docstore is None or self._id_map is None:
+            return
+        corpus = []
+        docs   = []
+        try:
+            for seq_id in range(len(self._id_map)):
+                doc_id = self._id_map.get(seq_id)
+                if doc_id is None:
+                    continue
+                doc = self._docstore.search(doc_id)
+                if doc is None:
+                    continue
+                tokens = doc.page_content.lower().split()
+                corpus.append(tokens)
+                meta = doc.metadata
+                docs.append({
+                    "content":     doc.page_content,
+                    "source":      meta.get("source_file") or meta.get("source", "Unknown"),
+                    "source_type": meta.get("source_type", "doc"),
+                    "language":    meta.get("language",    "text"),
+                    "page":        meta.get("page",        0),
+                    "section":     meta.get("section",     ""),
+                })
+            if corpus:
+                self._bm25_index  = BM25Okapi(corpus)
+                self._bm25_corpus = corpus
+                self._bm25_docs   = docs
+                print(f"✅ BM25 index built: {len(corpus)} documents")
+        except Exception as e:
+            print(f"⚠️ BM25 build failed: {e}")
+            self._bm25_index = None
+
+    def _bm25_search(self, query: str, k: int = 20) -> List[Dict[str, Any]]:
+        """BM25 keyword search — scores and returns top-k."""
+        if not BM25_AVAILABLE or self._bm25_index is None:
+            return []
+        tokens = query.lower().split()
+        scores = self._bm25_index.get_scores(tokens)
+        import numpy as np
+        top_idxs = np.argsort(scores)[::-1][:k]
+        results = []
+        for idx in top_idxs:
+            if scores[idx] > 0 and idx < len(self._bm25_docs):
+                results.append((float(scores[idx]), self._bm25_docs[idx]))
+        return results  # list of (score, doc_dict)
+
+    # ── Improvement 3: Cross-encoder re-ranker ────────────────────────────────
+    def _load_reranker(self):
+        """Lazy-load the cross-encoder (tiny, ~85MB, CPU-only)."""
+        if self._reranker is not None:
+            return
+        try:
+            from sentence_transformers import CrossEncoder
+            self._reranker = CrossEncoder(
+                "cross-encoder/ms-marco-MiniLM-L6-v2",
+                max_length=512,
+                device="cpu",
+            )
+            print("✅ Cross-encoder re-ranker loaded")
+        except Exception as e:
+            print(f"⚠️ Re-ranker load failed ({e}) — skipping re-ranking")
+            self._reranker = None
+
+    def _rerank(self, query: str, candidates: List[Dict[str, Any]], top_n: int = 5) -> List[Dict[str, Any]]:
+        """Score candidates with cross-encoder; return top_n highest-scoring."""
+        self._load_reranker()
+        if self._reranker is None or not candidates:
+            return candidates[:top_n]
+        try:
+            pairs  = [(query, c["content"][:512]) for c in candidates]
+            scores = self._reranker.predict(pairs)
+            ranked = sorted(zip(scores, candidates), key=lambda x: x[0], reverse=True)
+            top    = [doc for _, doc in ranked[:top_n]]
+            # Attach rerank score for transparency
+            for i, (score, doc) in enumerate(ranked[:top_n]):
+                top[i] = {**doc, "rerank_score": round(float(score), 4)}
+            return top
+        except Exception as e:
+            print(f"⚠️ Re-ranking failed ({e}) — returning unranked")
+            return candidates[:top_n]
+
     # ── Public API ────────────────────────────────────────────────────────────
     def search(self, query: str, k: int = 10,
                source_type: str = None) -> List[Dict[str, Any]]:
+        """
+        Hybrid retrieval pipeline:
+          Step 1 — FAISS vector search      (top 20)
+          Step 2 — BM25 keyword search      (top 20)
+          Step 3 — Reciprocal Rank Fusion   (merge & deduplicate)
+          Step 4 — Cross-encoder re-ranking (top 5 high-precision)
+        """
         if self._raw_index is None:
             return []
         try:
-            self._create_embeddings()
-            # Embed the query
-            q_vec = self._embeddings.embed_query(query)
             import numpy as np
-            q_np = np.array([q_vec], dtype=np.float32)
-            # Search using raw FAISS index (mmap'd, no RAM load)
-            scores, idxs = self._raw_index.search(q_np, k * 3 if source_type else k)
-            results = []
+            self._create_embeddings()
+
+            # ── Step 1: FAISS vector search ──────────────────────────────────
+            q_vec = self._embeddings.embed_query(query)
+            q_np  = np.array([q_vec], dtype=np.float32)
+            faiss_k = min(k * 4, self._raw_index.ntotal)  # fetch more for fusion
+            scores, idxs = self._raw_index.search(q_np, faiss_k)
+
+            faiss_results = []  # list of (rank, doc_dict)
+            rank = 0
             for score, idx in zip(scores[0], idxs[0]):
                 if idx < 0:
                     continue
-                doc_id  = self._id_map.get(int(idx))
+                doc_id = self._id_map.get(int(idx))
                 if doc_id is None:
                     continue
                 doc = self._docstore.search(doc_id)
@@ -464,16 +600,55 @@ class KnowledgeBase:
                 meta = doc.metadata
                 if source_type and meta.get("source_type") != source_type:
                     continue
-                results.append({
-                    "content":     doc.page_content,
-                    "source":      meta.get("source_file") or meta.get("source", "Unknown"),
-                    "source_type": meta.get("source_type", "doc"),
-                    "language":    meta.get("language",    "text"),
-                    "page":        meta.get("page",        0),
-                })
-                if len(results) >= k:
+                faiss_results.append((rank, {
+                    "content":      doc.page_content,
+                    "source":       meta.get("source_file") or meta.get("source", "Unknown"),
+                    "source_type":  meta.get("source_type", "doc"),
+                    "language":     meta.get("language",    "text"),
+                    "page":         meta.get("page",        0),
+                    "section":      meta.get("section",     ""),
+                    "faiss_score":  float(score),
+                }))
+                rank += 1
+                if rank >= k * 2:
                     break
-            return results
+
+            # ── Step 2: BM25 keyword search ───────────────────────────────────
+            # Build BM25 lazily on first search
+            if BM25_AVAILABLE and self._bm25_index is None:
+                self._build_bm25()
+
+            bm25_raw = self._bm25_search(query, k=k * 2)
+            bm25_results = []
+            for bm25_rank, (bm25_score, doc_dict) in enumerate(bm25_raw):
+                if source_type and doc_dict.get("source_type") != source_type:
+                    continue
+                bm25_results.append((bm25_rank, doc_dict))
+
+            # ── Step 3: Reciprocal Rank Fusion (RRF) ─────────────────────────
+            # Key: content fingerprint to deduplicate across sources
+            RRF_K  = 60
+            scores_map: Dict[str, float] = {}  # content[:120] → rrf_score
+            doc_map:    Dict[str, Dict]   = {}  # content[:120] → doc_dict
+
+            for rank, doc in faiss_results:
+                key = doc["content"][:120]
+                scores_map[key] = scores_map.get(key, 0.0) + 1.0 / (rank + RRF_K)
+                doc_map[key]    = doc
+
+            for rank, doc in bm25_results:
+                key = doc["content"][:120]
+                scores_map[key] = scores_map.get(key, 0.0) + 1.0 / (rank + RRF_K)
+                if key not in doc_map:
+                    doc_map[key] = doc
+
+            fused = sorted(scores_map.items(), key=lambda x: x[1], reverse=True)
+            candidates = [doc_map[key] for key, _ in fused[:k * 2]]
+
+            # ── Step 4: Cross-encoder re-ranking ─────────────────────────────
+            final = self._rerank(query, candidates, top_n=min(k, 5))
+            return final
+
         except Exception as e:
             print(f"⚠️ Search error: {e}")
             return []
@@ -490,15 +665,18 @@ class KnowledgeBase:
 
         parts = ["[KNOWLEDGE FROM YOUR BOOKS & CODE]\n"]
         for source, chunks in list(by_source.items())[:5]:
-            stype = chunks[0]["source_type"]
-            lang  = chunks[0]["language"]
-            icon  = "💻" if stype == "code" else "📖"
-            parts.append(f"\n{icon} From {source}:")
+            stype    = chunks[0]["source_type"]
+            lang     = chunks[0]["language"]
+            icon     = "💻" if stype == "code" else "📖"
+            # Show section header if available (Improvement 1)
+            section  = chunks[0].get("section", "")
+            src_label = f"{source}" + (f" § {section}" if section else "")
+            parts.append(f"\n{icon} From {src_label}:")
             for chunk in chunks[:3]:
                 if stype == "code":
-                    parts.append(f"```{lang}\n{chunk['content'][:600]}\n```")
+                    parts.append(f"```{lang}\n{chunk['content'][:800]}\n```")
                 else:
-                    parts.append(chunk["content"][:600])
+                    parts.append(chunk["content"][:800])
         return "\n".join(parts)
 
     def add_file(self, path: Path) -> Dict[str, Any]:
@@ -513,6 +691,10 @@ class KnowledgeBase:
         self._save_faiss()
         self._save_manifest()
         self._unload_embeddings()
+
+        # Improvement 2: rebuild BM25 index after upload
+        self._bm25_index = None  # force rebuild on next search
+        print(f"🔄 BM25 index invalidated — will rebuild on next search")
 
         success = name in self.manifest["indexed"]
         return {
@@ -560,19 +742,48 @@ async def context(req: SearchRequest):
 
 # ── Upload ────────────────────────────────────────────────────────────────────
 
+def _check_kb_quota(upload_size_mb: float, label: str):
+    """
+    Raise HTTPException if the upload would exceed either:
+      - TOTAL_KB_MAX_MB  (combined doc/ + books/ cap)
+      - BOOKS_MAX_MB     (books-only sub-limit, only enforced for book uploads)
+    label is 'doc' or 'book' so we can apply the right sub-limit.
+    """
+    current_total = get_kb_size_mb()
+    if current_total + upload_size_mb > TOTAL_KB_MAX_MB:
+        remaining = max(0.0, TOTAL_KB_MAX_MB - current_total)
+        raise HTTPException(
+            400,
+            f"Knowledge-base full. Total KB storage: {current_total:.1f} MB / "
+            f"{TOTAL_KB_MAX_MB} MB (only {remaining:.1f} MB left). "
+            f"Delete some documents or books to free space."
+        )
+    if label == "book":
+        current_books = get_books_size_mb()
+        if current_books + upload_size_mb > BOOKS_MAX_MB:
+            remaining = max(0.0, BOOKS_MAX_MB - current_books)
+            raise HTTPException(
+                400,
+                f"Books folder full. Books: {current_books:.1f} MB / "
+                f"{BOOKS_MAX_MB} MB (only {remaining:.1f} MB left). "
+                f"Delete some books to free space."
+            )
+
 @app.post("/upload/doc")
 async def upload_doc(file: UploadFile = File(...)):
     """Upload PDF, DOCX, TXT, or MD into doc/ and index immediately."""
     ext = Path(file.filename).suffix.lower()
     if ext not in DOC_EXTENSIONS:
         raise HTTPException(400, f"Unsupported type '{ext}'. Allowed: {DOC_EXTENSIONS}")
+    # Read into memory first so we know the size before writing to disk
+    content = await file.read()
+    upload_size_mb = len(content) / (1024 * 1024)
+    _check_kb_quota(upload_size_mb, "doc")
     dest = DOC_DIR / file.filename
     with open(dest, "wb") as f:
-        shutil.copyfileobj(file.file, f)
+        f.write(content)
     result = await asyncio.to_thread(kb.add_file, dest)
     return {"filename": file.filename, **result}
-
-BOOKS_MAX_MB = 48
 
 @app.post("/upload/book")
 async def upload_book(file: UploadFile = File(...)):
@@ -580,14 +791,9 @@ async def upload_book(file: UploadFile = File(...)):
     ext = Path(file.filename).suffix.lower()
     if ext not in DOC_EXTENSIONS:
         raise HTTPException(400, f"Unsupported type '{ext}'. Allowed: {DOC_EXTENSIONS}")
-
     content = await file.read()
     upload_size_mb = len(content) / (1024 * 1024)
-    current_size_mb = get_books_size_mb()
-    if current_size_mb + upload_size_mb > BOOKS_MAX_MB:
-        remaining = max(0, BOOKS_MAX_MB - current_size_mb)
-        raise HTTPException(400, f"Not enough space. Books: {current_size_mb:.1f}MB / {BOOKS_MAX_MB}MB (remaining: {remaining:.1f}MB). Delete some books first.")
-
+    _check_kb_quota(upload_size_mb, "book")
     dest = BOOKS_DIR / file.filename
     with open(dest, "wb") as f:
         f.write(content)
@@ -632,13 +838,24 @@ async def report():
 
 @app.get("/health")
 async def health():
+    kb_used  = round(get_kb_size_mb(), 1)
+    doc_used = round(get_doc_size_mb(), 1)
+    bk_used  = round(get_books_size_mb(), 1)
     return {
-        "status":   "operational",
-        "port":     5091,
-        "total":    len(kb.manifest["indexed"]),
-        "ready":    kb._raw_index is not None,
-        "doc_dir":  str(DOC_DIR),
-        "code_dir": str(CODE_DIR),
+        "status":        "operational",
+        "port":          5091,
+        "total_indexed": len(kb.manifest["indexed"]),
+        "ready":         kb._raw_index is not None,
+        "doc_dir":       str(DOC_DIR),
+        "code_dir":      str(CODE_DIR),
+        "storage": {
+            "doc_mb":       doc_used,
+            "books_mb":     bk_used,
+            "total_kb_mb":  kb_used,
+            "limit_kb_mb":  TOTAL_KB_MAX_MB,
+            "books_limit_mb": BOOKS_MAX_MB,
+            "pct_used":     round(kb_used / TOTAL_KB_MAX_MB * 100, 1),
+        },
     }
 
 

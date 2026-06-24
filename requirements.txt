@@ -32,6 +32,9 @@ openpyxl
 beautifulsoup4
 pytesseract
 
+# RAG quality
+rank-bm25
+
 # Translation / Speech
 deep-translator
 SpeechRecognition
@@ -65,5 +68,6 @@ py7zr
 # PySide6
 # CPU-only torch (no CUDA bloat in Docker)
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch --no-cache-dir
+torch
 sentence-transformers
+

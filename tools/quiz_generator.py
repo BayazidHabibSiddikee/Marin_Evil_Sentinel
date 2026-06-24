@@ -94,25 +94,7 @@ def render_quiz_html(parsed: dict) -> str:
         html += f'<div class="quiz-explanation" style="display:none;margin-top:8px;padding:8px;border-radius:6px;font-size:.85rem;"></div>'
         html += '</div>'
 
-    html += '''<script>
-function checkAnswer(btn, qid, correct) {
-    const selected = document.querySelector(`input[name="${qid}"]:checked`);
-    if (!selected) return;
-    const isCorrect = selected.dataset.correct === 'true';
-    const explanation = btn.nextElementSibling;
-    const allLabels = btn.parentElement.querySelectorAll('label');
-    allLabels.forEach(l => {
-        const input = l.querySelector('input');
-        if (input.dataset.correct === 'true') l.style.background = 'rgba(76,175,80,.2)';
-        else if (input.checked && !isCorrect) l.style.background = 'rgba(244,67,54,.2)';
-    });
-    explanation.style.display = 'block';
-    explanation.style.background = isCorrect ? 'rgba(76,175,80,.15)' : 'rgba(244,67,54,.15)';
-    explanation.style.color = isCorrect ? '#4caf50' : '#f44336';
-    explanation.textContent = isCorrect ? 'Correct!' : 'Incorrect. The answer is ' + correct;
-    btn.disabled = true;
-}
-</script></div>'''
+    html += '</div>'
 
     return html
 

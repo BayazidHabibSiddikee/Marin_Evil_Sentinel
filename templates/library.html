@@ -13,6 +13,28 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
     <style>
         :root {
+            --ink:       #0d0608;
+            --ink2:      #130a0d;
+            --ink3:      #1c1014;
+            --surface:   #221419;
+            --border:    #3d2028;
+            --border-hi: #5c2d3a;
+            --teal:      #e8192f;
+            --teal-dim:  #c0152a;
+            --teal-glow: rgba(192,21,42,.3);
+            --teal-soft: rgba(192,21,42,.1);
+            --gold:      #c9964c;
+            --gold-dim:  rgba(201,150,76,.15);
+            --danger:     #c95b5b;
+            --success:    #5db882;
+            --text:      #f0e8e0;
+            --text-dim:  #a08880;
+            --text-muted:#6b4848;
+            --radius:     10px;
+            --radius-sm:  6px;
+        }
+
+        :root[data-theme="standard"] {
             --ink:        #13100e;
             --ink2:       #1c1814;
             --ink3:       #221e19;
@@ -24,6 +46,7 @@
             --teal-glow:  rgba(77,184,164,.25);
             --teal-soft:  rgba(77,184,164,.08);
             --gold:       #c9a84c;
+            --gold-dim:   rgba(201,168,76,.15);
             --danger:     #c95b5b;
             --success:    #5db882;
             --text:       #e8e0d8;
@@ -80,6 +103,20 @@
             text-decoration: none;
         }
         .btn-back:hover { border-color: var(--teal); color: var(--teal); }
+        .topbar-right { display: flex; align-items: center; gap: 8px; }
+        .theme-toggle-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            padding: 5px 12px;
+            border-radius: var(--radius-sm);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .65rem;
+            cursor: pointer;
+            transition: all .2s;
+            letter-spacing: .04em;
+        }
+        .theme-toggle-btn:hover { border-color: var(--gold); color: var(--gold); }
 
         /* ── MAIN LAYOUT ─────────────────────────────────────────── */
         .container {
@@ -216,12 +253,14 @@
             overflow-y: auto;
             padding: 32px 40px;
             background: var(--ink);
+            transition: background .3s, color .3s;
         }
         .markdown-body {
             max-width: 800px;
             margin: 0 auto;
             line-height: 1.7;
             font-size: .95rem;
+            transition: color .3s;
         }
         .markdown-body h1, .markdown-body h2, .markdown-body h3 {
             color: var(--teal);
@@ -607,6 +646,137 @@
             font-size: .75rem; color: var(--text-dim);
         }
         .reply-quote .rq-role { font-weight: 600; color: var(--teal); font-size: .68rem; }
+
+        /* ── Storage quota bar ── */
+        .quota-bar-wrap {
+            padding: 8px 14px 4px;
+            border-bottom: 1px solid var(--border);
+        }
+        .quota-label {
+            display: flex;
+            justify-content: space-between;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .58rem;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+        .quota-label span:last-child { color: var(--text-dim); }
+        .quota-track {
+            height: 4px;
+            background: var(--surface);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .quota-fill {
+            height: 100%;
+            border-radius: 2px;
+            background: var(--teal);
+            transition: width .4s ease, background .3s;
+        }
+        .quota-fill.warn  { background: var(--gold); }
+        .quota-fill.full  { background: var(--danger); }
+        .quota-sub {
+            display: flex;
+            justify-content: space-between;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .55rem;
+            color: var(--text-muted);
+            margin-top: 3px;
+        }
+
+        /* ── READING COLOR CUSTOMIZER ─────────────────────────── */
+        .reader-cfg-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            z-index: 20;
+            background: var(--ink2);
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            padding: 5px 10px;
+            border-radius: var(--radius-sm);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .6rem;
+            cursor: pointer;
+            transition: all .2s;
+            letter-spacing: .04em;
+        }
+        .reader-cfg-btn:hover { border-color: var(--teal); color: var(--teal); }
+        .reader-cfg-panel {
+            display: none;
+            position: absolute;
+            top: 44px;
+            right: 12px;
+            z-index: 25;
+            background: var(--ink2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px;
+            width: 220px;
+            box-shadow: 0 8px 24px rgba(0,0,0,.4);
+        }
+        .reader-cfg-panel.open { display: block; }
+        .reader-cfg-panel h4 {
+            font-family: 'DM Serif Display', serif;
+            font-size: .85rem;
+            color: var(--teal);
+            margin-bottom: 10px;
+        }
+        .rc-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .rc-row label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .6rem;
+            color: var(--text-dim);
+            letter-spacing: .05em;
+        }
+        .rc-row input[type="color"] {
+            width: 28px;
+            height: 22px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: var(--ink);
+            cursor: pointer;
+            padding: 1px;
+        }
+        .rc-presets {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-top: 8px;
+        }
+        .rc-preset {
+            padding: 3px 8px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: var(--ink3);
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .55rem;
+            cursor: pointer;
+            transition: all .15s;
+        }
+        .rc-preset:hover { border-color: var(--teal); color: var(--teal); }
+        .rc-preset.active { border-color: var(--teal); color: var(--teal); background: var(--teal-soft); }
+        .rc-reset {
+            display: block;
+            width: 100%;
+            margin-top: 10px;
+            padding: 4px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .55rem;
+            cursor: pointer;
+            transition: all .15s;
+        }
+        .rc-reset:hover { border-color: var(--danger); color: var(--danger); }
     </style>
 </head>
 <body>
@@ -616,7 +786,11 @@
         <span class="logo-name">Library</span>
         <span class="logo-sub">MARIN HS-02</span>
     </div>
-    <a href="/" class="btn-back">&larr; Back to Chat</a>
+    <div class="topbar-right">
+        <a href="/" class="btn-back" style="text-decoration:none">&larr; Landing</a>
+        <a href="/chat" class="btn-back" style="text-decoration:none">&#9776; Chat</a>
+        <button id="lib-theme-btn" class="theme-toggle-btn" onclick="libToggleTheme()">Sweet Mode</button>
+    </div>
 </header>
 
 <div class="container">
@@ -629,10 +803,48 @@
                 +
             </label>
         </div>
+        <div class="quota-bar-wrap" id="quota-wrap" style="display:none">
+            <div class="quota-label">
+                <span>STORAGE</span>
+                <span id="quota-text">… / …</span>
+            </div>
+            <div class="quota-track">
+                <div class="quota-fill" id="quota-fill" style="width:0%"></div>
+            </div>
+            <div class="quota-sub">
+                <span id="quota-doc-text">doc: —</span>
+                <span id="quota-books-text">books: —</span>
+            </div>
+        </div>
         <div class="doc-empty">Loading...</div>
     </div>
 
-    <div class="viewer" id="viewer-container">
+    <div class="viewer" id="viewer-container" style="position:relative;">
+        <button class="reader-cfg-btn" onclick="toggleReaderCfg()" title="Reading Colors">Aa Colors</button>
+        <div class="reader-cfg-panel" id="reader-cfg-panel">
+            <h4>Reading Colors</h4>
+            <div class="rc-row">
+                <label>Background</label>
+                <input type="color" id="rc-bg" value="#0d0608" onchange="applyReaderColors()">
+            </div>
+            <div class="rc-row">
+                <label>Text</label>
+                <input type="color" id="rc-fg" value="#f0e8e0" onchange="applyReaderColors()">
+            </div>
+            <div class="rc-row">
+                <label>Headings</label>
+                <input type="color" id="rc-hl" value="#e8192f" onchange="applyReaderColors()">
+            </div>
+            <div class="rc-presets" id="rc-presets">
+                <button class="rc-preset" onclick="setReaderPreset('evil')">Evil Dark</button>
+                <button class="rc-preset" onclick="setReaderPreset('warm')">Warm Sepia</button>
+                <button class="rc-preset" onclick="setReaderPreset('forest')">Forest</button>
+                <button class="rc-preset" onclick="setReaderPreset('ocean')">Ocean</button>
+                <button class="rc-preset" onclick="setReaderPreset('lavender')">Lavender</button>
+                <button class="rc-preset" onclick="setReaderPreset('paper')">Paper</button>
+            </div>
+            <button class="rc-reset" onclick="resetReaderColors()">Reset to Theme Default</button>
+        </div>
         <div class="loader" id="loader">Loading document...</div>
         <div id="md-content">
             <div class="viewer-placeholder">
@@ -697,7 +909,7 @@
 
 <script>
     let currentDocument = null;
-    let marinAvatar = '/static/images/marin.png';
+    let marinAvatar = localStorage.getItem('marinTheme') === 'standard' ? '/static/images/marin.png' : '/static/images/marin_evil.png';
     let userAvatar = '';
     let replyContext = null;
 
@@ -730,28 +942,60 @@
             const res = await fetch('/api/documents');
             const data = await res.json();
             const list = document.getElementById('doc-list');
-            list.innerHTML = `<div class="sidebar-heading"><span>Documents</span><label class="lib-upload-btn" title="Upload book/document"><input type="file" id="lib-file-input" accept=".pdf,.docx,.txt,.md" hidden>+</label></div>`;
+            list.innerHTML = `
+                <div class="sidebar-heading"><span>Documents</span><label class="lib-upload-btn" title="Upload"><input type="file" id="lib-file-input" accept=".pdf,.docx,.txt,.md" hidden>+</label></div>
+                <div class="quota-bar-wrap" id="quota-wrap" style="display:none">
+                    <div class="quota-label"><span>STORAGE</span><span id="quota-text">… / …</span></div>
+                    <div class="quota-track"><div class="quota-fill" id="quota-fill" style="width:0%"></div></div>
+                    <div class="quota-sub"><span id="quota-doc-text">doc: —</span><span id="quota-books-text">books: —</span></div>
+                </div>`;
 
             if (!data.documents || data.documents.length === 0) {
                 list.innerHTML += '<div class="doc-empty">No documents found.</div>';
-                return;
+            } else {
+                data.documents.forEach(doc => {
+                    const el = document.createElement('div');
+                    el.className = 'doc-item';
+                    el.innerHTML = `
+                        <div class="doc-title">${escapeHtml(doc.filename)}</div>
+                        <div class="doc-meta">${escapeHtml(doc.type)} &middot; ${doc.size}</div>
+                        <button class="doc-delete-btn" onclick="event.stopPropagation(); deleteBook('${escapeHtml(doc.filename)}')" title="Delete">&#10005;</button>
+                    `;
+                    el.onclick = () => {
+                        document.querySelectorAll('.doc-item').forEach(d => d.classList.remove('active'));
+                        el.classList.add('active');
+                        openDocument(doc.filename);
+                    };
+                    list.appendChild(el);
+                });
             }
 
-            data.documents.forEach(doc => {
-                const el = document.createElement('div');
-                el.className = 'doc-item';
-                el.innerHTML = `
-                    <div class="doc-title">${escapeHtml(doc.filename)}</div>
-                    <div class="doc-meta">${escapeHtml(doc.type)} &middot; ${doc.size}</div>
-                    <button class="doc-delete-btn" onclick="event.stopPropagation(); deleteBook('${escapeHtml(doc.filename)}')" title="Delete">&#10005;</button>
-                `;
-                el.onclick = () => {
-                    document.querySelectorAll('.doc-item').forEach(d => d.classList.remove('active'));
-                    el.classList.add('active');
-                    openDocument(doc.filename);
-                };
-                list.appendChild(el);
-            });
+            // Fetch storage quota from /api/rag/health
+            try {
+                const hr = await fetch('/api/rag/health');
+                if (hr.ok) {
+                    const hd = await hr.json();
+                    const s = hd.storage;
+                    if (s) {
+                        const pct = Math.min(s.pct_used, 100);
+                        const fill = document.getElementById('quota-fill');
+                        const qtext = document.getElementById('quota-text');
+                        const qdoc = document.getElementById('quota-doc-text');
+                        const qbooks = document.getElementById('quota-books-text');
+                        const qwrap = document.getElementById('quota-wrap');
+                        if (fill && qtext && qdoc && qbooks && qwrap) {
+                            qwrap.style.display = 'block';
+                            fill.style.width = pct + '%';
+                            fill.className = 'quota-fill' +
+                                (pct >= 90 ? ' full' : pct >= 70 ? ' warn' : '');
+                            qtext.textContent = `${s.total_kb_mb} / ${s.limit_kb_mb} MB`;
+                            qdoc.textContent = `doc: ${s.doc_mb} MB`;
+                            qbooks.textContent = `books: ${s.books_mb} MB`;
+                        }
+                    }
+                }
+            } catch {}
+
         } catch (e) {
             console.error(e);
         }
@@ -768,13 +1012,15 @@
         try {
             const res = await fetch('/api/documents/upload', { method: 'POST', body: form });
             const data = await res.json();
-            if (data.error) {
-                alert(data.error);
+            if (!res.ok || data.error) {
+                // Show the server's error message (includes quota info)
+                const msg = data.detail || data.error || 'Upload failed.';
+                alert('\u26a0\ufe0f ' + msg);
             } else {
                 loadDocuments();
             }
         } catch (err) {
-            alert('Upload failed.');
+            alert('Upload failed: ' + err.message);
         }
     });
 
@@ -800,6 +1046,17 @@
         } finally {
             loader.style.display = 'none';
             contentDiv.style.display = 'block';
+            // Apply saved reader colors to new content
+            try {
+                const saved = JSON.parse(localStorage.getItem('readerColors'));
+                if (saved) {
+                    document.getElementById('viewer-container').style.background = saved.bg;
+                    contentDiv.style.color = saved.fg;
+                    contentDiv.querySelectorAll('h1, h2, h3').forEach(h => h.style.color = saved.hl);
+                    contentDiv.querySelectorAll('a').forEach(a => a.style.color = saved.hl);
+                    contentDiv.querySelectorAll('blockquote').forEach(b => b.style.borderLeftColor = saved.hl);
+                }
+            } catch {}
         }
     }
 
@@ -1098,6 +1355,7 @@
         try {
             const formData = new FormData();
             formData.append('message', msgToSend);
+            formData.append('theme', localStorage.getItem('marinTheme') || 'evil');
             if (attachedImage) {
                 formData.append('image', attachedImage);
             }
@@ -1147,6 +1405,93 @@
         attachedImage = null;
         document.getElementById('lib-attach-preview').innerHTML = '';
     };
+
+    // ── Reading Color Customizer ──────────────────────────────
+    const READER_PRESETS = {
+        evil:     { bg: '#0d0608', fg: '#f0e8e0', hl: '#e8192f' },
+        warm:     { bg: '#2b1f14', fg: '#e8dcc8', hl: '#c9964c' },
+        forest:   { bg: '#0a1a0f', fg: '#d0e8d0', hl: '#4db8a4' },
+        ocean:    { bg: '#0a1018', fg: '#d0dce8', hl: '#4a90d9' },
+        lavender: { bg: '#140e1c', fg: '#ddd0e8', hl: '#9b6dcc' },
+        paper:    { bg: '#f5f0e8', fg: '#2c2420', hl: '#8b4513' },
+    };
+
+    function toggleReaderCfg() {
+        document.getElementById('reader-cfg-panel').classList.toggle('open');
+    }
+
+    function applyReaderColors() {
+        const bg = document.getElementById('rc-bg').value;
+        const fg = document.getElementById('rc-fg').value;
+        const hl = document.getElementById('rc-hl').value;
+        const viewer = document.getElementById('viewer-container');
+        const mdBody = document.getElementById('md-content');
+        viewer.style.background = bg;
+        if (mdBody) mdBody.style.color = fg;
+        document.querySelectorAll('#md-content h1, #md-content h2, #md-content h3').forEach(h => h.style.color = hl);
+        document.querySelectorAll('#md-content a').forEach(a => a.style.color = hl);
+        document.querySelectorAll('#md-content blockquote').forEach(b => b.style.borderLeftColor = hl);
+        localStorage.setItem('readerColors', JSON.stringify({ bg, fg, hl }));
+        document.querySelectorAll('.rc-preset').forEach(p => p.classList.remove('active'));
+    }
+
+    function setReaderPreset(name) {
+        const p = READER_PRESETS[name];
+        if (!p) return;
+        document.getElementById('rc-bg').value = p.bg;
+        document.getElementById('rc-fg').value = p.fg;
+        document.getElementById('rc-hl').value = p.hl;
+        applyReaderColors();
+        document.querySelectorAll('.rc-preset').forEach(btn => {
+            btn.classList.toggle('active', btn.textContent.toLowerCase().includes(name));
+        });
+    }
+
+    function resetReaderColors() {
+        localStorage.removeItem('readerColors');
+        const theme = localStorage.getItem('marinTheme') || 'evil';
+        const def = READER_PRESETS[theme === 'standard' ? 'warm' : 'evil'];
+        document.getElementById('rc-bg').value = def.bg;
+        document.getElementById('rc-fg').value = def.fg;
+        document.getElementById('rc-hl').value = def.hl;
+        const viewer = document.getElementById('viewer-container');
+        const mdBody = document.getElementById('md-content');
+        viewer.style.background = '';
+        if (mdBody) mdBody.style.color = '';
+        document.querySelectorAll('#md-content h1, #md-content h2, #md-content h3').forEach(h => h.style.color = '');
+        document.querySelectorAll('#md-content a').forEach(a => a.style.color = '');
+        document.querySelectorAll('#md-content blockquote').forEach(b => b.style.borderLeftColor = '');
+        document.querySelectorAll('.rc-preset').forEach(p => p.classList.remove('active'));
+    }
+
+    (function loadReaderColors() {
+        try {
+            const saved = JSON.parse(localStorage.getItem('readerColors'));
+            if (saved) {
+                document.getElementById('rc-bg').value = saved.bg;
+                document.getElementById('rc-fg').value = saved.fg;
+                document.getElementById('rc-hl').value = saved.hl;
+                const viewer = document.getElementById('viewer-container');
+                viewer.style.background = saved.bg;
+                document.querySelectorAll('.rc-preset').forEach(btn => {
+                    for (const [name, preset] of Object.entries(READER_PRESETS)) {
+                        if (preset.bg === saved.bg && preset.fg === saved.fg && preset.hl === saved.hl) {
+                            btn.classList.toggle('active', btn.textContent.toLowerCase().includes(name));
+                        }
+                    }
+                });
+            }
+        } catch {}
+    })();
+
+    // Close reader config when clicking outside
+    document.addEventListener('click', (e) => {
+        const panel = document.getElementById('reader-cfg-panel');
+        const btn = document.querySelector('.reader-cfg-btn');
+        if (panel && !panel.contains(e.target) && !btn.contains(e.target)) {
+            panel.classList.remove('open');
+        }
+    });
 
     loadDocuments();
 
@@ -1223,6 +1568,27 @@
             document.body.style.userSelect = '';
         }
     });
+
+    // ── Theme (Sweet / Evil) ──────────────────────────────────
+    function libApplyTheme() {
+        const theme = localStorage.getItem('marinTheme') || 'evil';
+        const btn = document.getElementById('lib-theme-btn');
+        if (theme === 'standard') {
+            document.documentElement.setAttribute('data-theme', 'standard');
+            if (btn) btn.textContent = 'Evil Mode';
+            marinAvatar = '/static/images/marin.png';
+        } else {
+            document.documentElement.removeAttribute('data-theme');
+            if (btn) btn.textContent = 'Sweet Mode';
+            marinAvatar = '/static/images/marin_evil.png';
+        }
+    }
+    function libToggleTheme() {
+        const current = localStorage.getItem('marinTheme') || 'evil';
+        localStorage.setItem('marinTheme', current === 'evil' ? 'standard' : 'evil');
+        libApplyTheme();
+    }
+    libApplyTheme();
 </script>
 
 </body>

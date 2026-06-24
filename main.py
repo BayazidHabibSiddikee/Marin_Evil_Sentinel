@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 import database
-from config import get_books_size_mb
+from config import get_books_size_mb, get_kb_size_mb, TOTAL_KB_MAX_MB
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
@@ -105,6 +105,12 @@ async def auth_middleware(request: Request, call_next):
 async def root(request: Request):
     if not database.get_state("ONBOARDING_COMPLETE"):
         return RedirectResponse(url="/onboarding")
+    return templates.TemplateResponse(request=request, name="landing.html", context={"request": request})
+
+@app.get("/chat", response_class=HTMLResponse)
+async def chat_page(request: Request):
+    if not database.get_state("ONBOARDING_COMPLETE"):
+        return RedirectResponse(url="/onboarding")
     return templates.TemplateResponse(request=request, name="marin_chat.html", context={"request": request})
 
 @app.get("/onboarding", response_class=HTMLResponse)
@@ -169,6 +175,17 @@ async def save_settings(request: Request):
 @app.get("/library", response_class=HTMLResponse)
 async def library_page(request: Request):
     return templates.TemplateResponse(request=request, name="library.html", context={"request": request})
+
+@app.get("/api/rag/health")
+async def rag_health_proxy():
+    """Proxy to the RAG server's /health so the library UI can read storage stats."""
+    import httpx
+    try:
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            r = await client.get("http://127.0.0.1:5091/health")
+            return r.json()
+    except Exception as e:
+        return {"status": "unavailable", "error": str(e)}
 
 @app.get("/api/documents")
 async def list_documents():
@@ -250,10 +267,10 @@ async def upload_document(file: UploadFile = File(...)):
 
     content = await file.read()
     upload_size_mb = len(content) / (1024 * 1024)
-    current_size_mb = get_books_size_mb()
-    if current_size_mb + upload_size_mb > 48:
-        remaining = max(0, 48 - current_size_mb)
-        return {"error": f"Not enough space. Books: {current_size_mb:.1f}MB / 48MB (remaining: {remaining:.1f}MB). Delete some books first."}
+    current_total_mb = get_kb_size_mb()
+    if current_total_mb + upload_size_mb > TOTAL_KB_MAX_MB:
+        remaining = max(0.0, TOTAL_KB_MAX_MB - current_total_mb)
+        return {"error": f"Knowledge-base full. Total: {current_total_mb:.1f} MB / {TOTAL_KB_MAX_MB} MB (only {remaining:.1f} MB left). Delete some documents or books first."}
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
     doc_dir = os.path.join(base_dir, "books")
@@ -311,6 +328,7 @@ async def chat_endpoint(request: Request):
 
     form = await request.form()
     message = form.get("message", "")
+    theme = form.get("theme", "evil")
     
     # Handle image upload if present
     image_path = None
@@ -331,7 +349,7 @@ async def chat_endpoint(request: Request):
     from marin import main as marin_main
     
     async def stream_generator():
-        async for chunk in marin_main(message, image_path=image_path):
+        async for chunk in marin_main(message, image_path=image_path, theme=theme):
             yield chunk
             
     return StreamingResponse(stream_generator(), media_type="text/plain")
@@ -474,7 +492,6 @@ async def analyze_link(req: UrlRequest):
 
 @app.post("/api/tools/convert")
 async def convert_file(file: UploadFile = File(...)):
-    BOOKS_MAX_MB = 48
     try:
         ext = os.path.splitext(file.filename)[1].lower()
         temp_path = f"/tmp/{file.filename}"
@@ -482,11 +499,11 @@ async def convert_file(file: UploadFile = File(...)):
             shutil.copyfileobj(file.file, f)
 
         upload_size_mb = os.path.getsize(temp_path) / (1024 * 1024)
-        current_size_mb = get_books_size_mb()
-        if current_size_mb + upload_size_mb > BOOKS_MAX_MB:
+        current_total_mb = get_kb_size_mb()
+        if current_total_mb + upload_size_mb > TOTAL_KB_MAX_MB:
             os.remove(temp_path)
-            remaining = max(0, BOOKS_MAX_MB - current_size_mb)
-            return {"error": f"Not enough space. Books folder: {current_size_mb:.1f}MB / {BOOKS_MAX_MB}MB (remaining: {remaining:.1f}MB). Delete some books first."}
+            remaining = max(0.0, TOTAL_KB_MAX_MB - current_total_mb)
+            return {"error": f"Knowledge-base full. Total: {current_total_mb:.1f} MB / {TOTAL_KB_MAX_MB} MB (only {remaining:.1f} MB left). Delete some documents or books first."}
         
         out_path = None
         if ext == ".docx":
@@ -547,7 +564,7 @@ async def generate_quiz_endpoint(req: QuizRequest):
             import json
             parsed = json.loads(result.replace("__STRUCTURED__", "", 1))
             html = render_quiz_html(parsed)
-            return {"quiz": html, "format": "html"}
+            return {"quiz": html, "format": "html", "raw_quiz": parsed}
         return {"quiz": result, "format": "text"}
     except Exception as e:
         return {"error": str(e)}

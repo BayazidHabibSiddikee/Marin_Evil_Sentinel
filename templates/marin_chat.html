@@ -14,8 +14,29 @@
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/contrib/auto-render.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
-    <style>
-        :root {
+    <style>        :root {
+            --ink:       #0d0608;
+            --ink2:      #130a0d;
+            --ink3:      #1c1014;
+            --surface:   #221419;
+            --border:    #3d2028;
+            --border-hi: #5c2d3a;
+            --teal:      #e8192f;
+            --teal-dim:  #c0152a;
+            --teal-glow: rgba(192,21,42,.3);
+            --teal-soft: rgba(192,21,42,.1);
+            --gold:      #c9964c;
+            --gold-dim:  rgba(201,150,76,.15);
+            --danger:     #c95b5b;
+            --success:    #5db882;
+            --text:      #f0e8e0;
+            --text-dim:  #a08880;
+            --text-muted:#6b4848;
+            --radius:     10px;
+            --radius-sm:  6px;
+        }
+
+        :root[data-theme="standard"] {
             --ink:        #13100e;
             --ink2:       #1c1814;
             --ink3:       #221e19;
@@ -748,16 +769,17 @@
 <!-- TOP BAR -->
 <header class="topbar">
     <div class="logo">
-        <div class="logo-avatar"><img src="/static/images/marin.png" alt="Marin" onerror="this.style.display='none';this.parentNode.textContent='M';"></div>
+        <div class="logo-avatar"><img src="/static/images/marin_evil.png" alt="Marin" onerror="this.style.display='none';this.parentNode.textContent='M';"></div>
         <div class="logo-text">
             <span class="logo-name">Marin</span>
             <span class="logo-sub">HS-02 &middot; ONLINE</span>
         </div>
     </div>
     <div class="topbar-right">
+        <a href="/" class="tb-btn" style="text-decoration:none">landing</a>
+        <a href="/library" class="tb-btn" style="text-decoration:none">library</a>
+        <button class="tb-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle Theme">Sweet Mode</button>
         <button class="tb-btn" onclick="openSettings()">settings</button>
-        <button class="tb-btn" onclick="openFlashcards()">flashcards</button>
-        <button class="tb-btn" onclick="fetchStats()">stats</button>
         <div class="status-pip" title="Operational"></div>
     </div>
 </header>
@@ -842,7 +864,7 @@
     <div class="chat-wrapper">
         <div id="messages">
             <div class="msg ai">
-                <div class="avatar ai"><img src="/static/images/marin.png" alt="M" onerror="this.style.display='none';this.parentNode.textContent='M';"></div>
+                <div class="avatar ai"><img src="/static/images/marin_evil.png" alt="M" onerror="this.style.display='none';this.parentNode.textContent='M';"></div>
                 <div class="bubble">
                     <strong>Marin is online.</strong><br>
                     Just ask — I'll figure out the best way to help.
@@ -881,6 +903,7 @@
     let attachedImage = null;
     let replyContext = null;
     let userAvatar = '';
+    let marinAvatar = '/static/images/marin_evil.png';
 
     async function saveToolContext(tool, result) {
         try {
@@ -914,7 +937,7 @@
                 ? `<div class="avatar user-av"><img src="${userAvatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" onerror="this.parentNode.textContent='U'"></div>`
                 : `<div class="avatar user-av">U</div>`;
         }
-        if (role === 'ai') inner += `<div class="avatar ai"><img src="/static/images/marin.png" alt="M" onerror="this.style.display='none';this.parentNode.textContent='M';"></div>`;
+        if (role === 'ai') inner += `<div class="avatar ai"><img src="${marinAvatar}" alt="M" onerror="this.style.display='none';this.parentNode.textContent='M';"></div>`;
 
         let bubbleContent = '';
         if (replyTo) {
@@ -994,7 +1017,7 @@
         closeTimerDialog();
         if (task) {
             input.value = `/timer start ${task}`;
-            sendMessage();
+            await sendMessage();
         }
     }
 
@@ -1277,8 +1300,9 @@
                 document.getElementById('yt-result').innerText = data.error;
             } else {
                 document.getElementById('yt-result').innerText = 'Done! Transcript sent to chat.';
-                saveToolContext('youtube_transcript', `Transcript from ${url}: ${data.transcript || ''}`);
-                input.value = `Analyze this transcript: ${url}`;
+                await saveToolContext('youtube_transcript', `Transcript from ${url}: ${data.transcript || ''}`);
+                input.value = `I just extracted the transcript for ${url}. Can you analyze it and give me a summary?`;
+                await sendMessage();
                 document.getElementById('yt-url').value = '';
             }
         } catch (err) {
@@ -1302,8 +1326,9 @@
                 document.getElementById('search-result').innerText = data.error;
             } else {
                 document.getElementById('search-result').innerText = 'Done! Results sent to chat.';
-                addMessage('ai', `<div class="card"><h3>Search: ${escapeHtml(query)}</h3><pre style="white-space:pre-wrap;font-size:.8rem;">${escapeHtml(data.results)}</pre></div>`);
-                saveToolContext('search', data.results);
+                await saveToolContext('search', data.results);
+                input.value = `I searched the web for "${query}". Can you analyze these results?`;
+                await sendMessage();
                 document.getElementById('search-query').value = '';
             }
         } catch (err) {
@@ -1327,8 +1352,9 @@
                 document.getElementById('pdf-result').innerText = data.error;
             } else {
                 document.getElementById('pdf-result').innerText = 'Done!';
-                addMessage('ai', `&#128218; ${escapeHtml(data.message)}`);
-                saveToolContext('download_pdf', data.message);
+                await saveToolContext('download_pdf', data.message);
+                input.value = `I just downloaded a PDF from ${url} to my library. What should I do next?`;
+                await sendMessage();
                 document.getElementById('pdf-url').value = '';
             }
         } catch (err) {
@@ -1352,8 +1378,9 @@
                 document.getElementById('repo-result').innerText = data.error;
             } else {
                 document.getElementById('repo-result').innerText = 'Done! Analysis sent to chat.';
-                addMessage('ai', `<div class="card"><h3>Repo Analysis</h3><pre style="white-space:pre-wrap;font-size:.8rem;">${escapeHtml(data.message)}</pre></div>`);
-                saveToolContext('analyze_link', data.message);
+                await saveToolContext('analyze_link', data.message);
+                input.value = `I just ran an analysis on the repo/link: ${url}. Can you give me your thoughts on it?`;
+                await sendMessage();
                 document.getElementById('repo-url').value = '';
             }
         } catch (err) {
@@ -1379,11 +1406,11 @@
                 document.getElementById('quiz-result').innerText = 'Quiz sent to chat!';
                 if (data.format === 'html') {
                     addMessage('ai', data.quiz);
-                } else {
-                    const quiz = typeof data.quiz === 'string' ? data.quiz : JSON.stringify(data.quiz, null, 2);
-                    addMessage('ai', `<div class="card"><h3>Quiz: ${escapeHtml(topic)}</h3><pre style="white-space:pre-wrap;font-size:.8rem;">${escapeHtml(quiz)}</pre></div>`);
                 }
-                saveToolContext('quiz', `Quiz on ${topic}: generated`);
+                const rawQuizData = typeof data.raw_quiz !== 'undefined' ? data.raw_quiz : data.quiz;
+                await saveToolContext('quiz', `Generated Quiz for ${topic}: ${JSON.stringify(rawQuizData)}`);
+                input.value = `I generated a quiz on the topic "${topic}". Can you provide a quick study review based on the quiz contents?`;
+                await sendMessage();
                 document.getElementById('quiz-topic').value = '';
             }
         } catch (err) {
@@ -1407,9 +1434,10 @@
             if (data.error) {
                 document.getElementById('translate-result').innerText = data.error;
             } else {
-                document.getElementById('translate-result').innerText = data.message;
-                addMessage('ai', `<div class="card"><h3>Translation</h3><p>${escapeHtml(data.message)}</p></div>`);
-                saveToolContext('translate', `Translated to ${lang}: ${data.message}`);
+                document.getElementById('translate-result').innerText = 'Done!';
+                await saveToolContext('translate', `Translated to ${lang}: ${data.message}`);
+                input.value = `I translated "${text}" to ${lang}. The result is: ${data.message}.`;
+                await sendMessage();
                 document.getElementById('translate-text').value = '';
             }
         } catch (err) {
@@ -1441,9 +1469,9 @@
     }
 
     // ── Send action (sidebar shortcuts) ────────────────────────────
-    function sendAction(text) {
+    async function sendAction(text) {
         input.value = text;
-        sendMessage();
+        await sendMessage();
     }
 
     // ── Escape HTML ────────────────────────────────────────────────
@@ -1597,6 +1625,7 @@
                 msgToSend = `[Replying to ${rpRole}: "${savedReply.text.substring(0, 120)}"] ${text}`;
             }
             formData.append('message', msgToSend);
+            formData.append('theme', localStorage.getItem('marinTheme') || 'evil');
             if (attachedImage) {
                 formData.append('image', attachedImage);
             }
@@ -1690,10 +1719,10 @@
 
     // ── Event listeners ────────────────────────────────────────────
     sendBtn.addEventListener('click', sendMessage);
-    input.addEventListener('keydown', (e) => {
+    input.addEventListener('keydown', async (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            sendMessage();
+            await sendMessage();
         }
     });
 
@@ -1761,7 +1790,57 @@
             console.error('Failed to load history:', e);
         }
     }
+    function checkAnswer(btn, qid, correct) {
+        const selected = document.querySelector(`input[name="${qid}"]:checked`);
+        if (!selected) return;
+        const isCorrect = selected.dataset.correct === 'true';
+        const explanation = btn.nextElementSibling;
+        const allLabels = btn.parentElement.querySelectorAll('label');
+        allLabels.forEach(l => {
+            const input = l.querySelector('input');
+            if (input.dataset.correct === 'true') l.style.background = 'rgba(76,175,80,.2)';
+            else if (input.checked && !isCorrect) l.style.background = 'rgba(244,67,54,.2)';
+        });
+        explanation.style.display = 'block';
+        explanation.style.background = isCorrect ? 'rgba(76,175,80,.15)' : 'rgba(244,67,54,.15)';
+        explanation.style.color = isCorrect ? '#4caf50' : '#f44336';
+        explanation.textContent = isCorrect ? 'Correct!' : 'Incorrect. The answer is ' + correct;
+        btn.disabled = true;
+    }
+
     loadHistory();
+</script>
+
+
+<script>
+    function applyTheme() {
+        const theme = localStorage.getItem('marinTheme') || 'evil';
+        const themeBtn = document.getElementById('theme-btn');
+        if (theme === 'standard') {
+            document.documentElement.setAttribute('data-theme', 'standard');
+            if (themeBtn) themeBtn.textContent = 'Evil Mode';
+            document.querySelectorAll('img').forEach(img => {
+                if (img.src.includes('marin_evil.png')) img.src = '/static/images/marin.png';
+            });
+            marinAvatar = '/static/images/marin.png';
+            if (typeof marinAvatar !== 'undefined') marinAvatar = '/static/images/marin.png';
+        } else {
+            document.documentElement.removeAttribute('data-theme');
+            if (themeBtn) themeBtn.textContent = 'Sweet Mode';
+            document.querySelectorAll('img').forEach(img => {
+                if (img.src.includes('marin.png') && !img.src.includes('marin_evil.png')) img.src = '/static/images/marin_evil.png';
+            });
+            marinAvatar = '/static/images/marin_evil.png';
+            if (typeof marinAvatar !== 'undefined') marinAvatar = '/static/images/marin_evil.png';
+        }
+    }
+    function toggleTheme() {
+        const current = localStorage.getItem('marinTheme') || 'evil';
+        const next = current === 'evil' ? 'standard' : 'evil';
+        localStorage.setItem('marinTheme', next);
+        applyTheme();
+    }
+    applyTheme();
 </script>
 
 </body>

@@ -93,6 +93,12 @@ Marin Kitagawa is a personal AI study partner — not a generic chatbot. She's d
 
 ## Features
 
+### 🏰 Landing Page
+
+![Landing Page](static/images/screenshots/landing_page.png)
+
+The **Landing Page** is the gateway to the system. It features a bold, atmospheric design where you can easily toggle between standard operation and the immersive "Evil Queen" protocol. From here, you can seamlessly launch into the main Chat interface or enter the Library ("Enter Forge").
+
 ### Core Chat
 - Streaming responses with real-time token delivery
 - Vibe detection (lovely, flirty, angry, sad, excited, playful, neutral) — Marin adapts her tone
@@ -105,6 +111,26 @@ Marin Kitagawa is a personal AI study partner — not a generic chatbot. She's d
 - Supports: PDF (with OCR fallback), DOCX, TXT, MD, PY, C/CPP/H, XLSX, HTML
 - Hybrid search: FAISS vector similarity + metadata filtering by source type
 - Context injection: relevant excerpts injected into Marin's system prompt
+
+### 📚 Library View
+
+![Library View](static/images/screenshots/library_view.png)
+
+The built-in **Library Section** acts as a centralized hub for all your books and study materials. 
+* **Read Alongside Marin:** You can open and read your downloaded docs, PDFs, and textbooks directly from the library viewer.
+* **Direct Questioning:** Ask Marin anything about the contents of the book directly from the interface while you study.
+* **Handles Massive Files:** Marin can effortlessly read and process heavy documents—even if the size of your books exceeds 50MB!
+
+### 🛠️ Quick Action Sidebar Tools
+
+You don't need to use chat to perform common actions! The left sidebar features direct access to Marin's tools:
+* **YouTube Transcript:** Extract and analyze transcripts directly from video URLs.
+* **Convert Doc:** Quickly convert between PDF and DOCX.
+* **Web Search:** Perform instant web searches.
+* **Download PDF:** Save PDFs straight to your library for RAG indexing.
+* **Repo / Link Analyzer:** Analyze GitHub repositories and URLs.
+* **Quiz Generator:** Spin up a study quiz based on any topic.
+* **Translate:** Quick text translation support.
 
 ### Structured Output Modes
 - **Teacher Mode** (`learn` intent): concept → explanation → math → takeaways
@@ -143,7 +169,8 @@ Marin Kitagawa is a personal AI study partner — not a generic chatbot. She's d
 - Launch 23 desktop apps cross-platform (Chrome, VS Code, Spotify, etc.)
 - Open 22 web apps (ChatGPT, Claude, YouTube, GitHub, etc.)
 
-### Proactive Engine
+### 🎯 Proactive Accountability Engine
+- **Keeps you on track:** Marin proactively asks about your goals, tasks, and missions if you get distracted.
 - Monitors idle time: 20min → 2hr → 5hr → 48hr escalation
 - Respects quiet hours (12:00 AM – 7:30 AM)
 - SSE broadcast to connected clients
@@ -233,7 +260,38 @@ curl -X POST http://127.0.0.1:5091/reindex
 
 ---
 
-## Configuration
+## ⚙️ Configuration & Settings
+
+![Settings Menu Configuration](static/images/screenshots/settings_view.png)
+
+The application features a comprehensive and user-friendly settings panel that allows you to customize your AI experience, manage API keys, and route specific tasks to different models.
+
+### OpenRouter Integration
+This project integrates directly with **[OpenRouter](https://openrouter.ai/)** to provide a wide variety of LLM options, including both premium and free models. 
+
+Simply paste your OpenRouter API key (`sk-or-...`) into the settings menu to get started. You can add multiple keys if needed.
+
+### Configuration Options
+*   **User Personalization:** Input `Your Name` and `Location` to provide the AI with basic context for more personalized interactions.
+*   **Model Routing:** 
+    *   **Free Models:** Toggle to quickly enable and access free-tier models.
+    *   **Active Model:** Select the primary text model you want to use for the main chat interface.
+    *   **Vision Model:** Designate a specific multimodal model for image analysis tasks (e.g., `google/gemma-4-26b-a4b-it:free`).
+    *   **Image Model:** Choose a dedicated model for image generation capabilities.
+*   **External Integrations:** 
+    *   **Telegram Key:** Connect your Telegram bot for external messaging capabilities.
+    *   **Sender Email:** Configure an email address for automated sending features.
+
+### API Base URL (Landing Page Settings)
+
+The Landing Page includes a **`// API BASE URL`** field under Settings. This is an optional configuration for pointing the frontend to a different backend server.
+
+By default, the UI talks to the Python FastAPI server running in Docker (which handles the database, LangChain, RAG, etc.). However, if you:
+
+- Host the backend remotely (e.g., on Google Cloud, AWS, or a VPS) but run the frontend locally
+- Want to connect directly to a local Ollama or LM Studio endpoint instead of OpenRouter
+
+...you can paste that custom URL in here. If you're running everything together locally via Docker, **leave it blank** — the app automatically defaults to the server it's being hosted from.
 
 ### config.py
 
