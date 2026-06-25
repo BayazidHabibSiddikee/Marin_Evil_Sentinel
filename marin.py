@@ -36,13 +36,13 @@ except ImportError:
     leo = None
 
 # ── Config ────────────────────────────────────────────────────────────────────
-from config import BASE_DIR, DOC_DIR, FAISS_DIR
+from config import BASE_DIR, BOOKS_DIR, FAISS_DIR
 VIBE_FILE = os.path.join(BASE_DIR, "vibe_state.json")
 IMAGE_DIR = os.path.join(os.getcwd(), "static", "uploads")
 GEN_DIR   = os.path.join(os.getcwd(), "static", "generated")
 
 os.makedirs(GEN_DIR,    exist_ok=True)
-os.makedirs(DOC_DIR,    exist_ok=True)
+os.makedirs(BOOKS_DIR,  exist_ok=True)
 os.makedirs(FAISS_DIR, exist_ok=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -151,7 +151,7 @@ def _ensure_rag_server() -> bool:
             log_dir = os.path.join(base, "logs")
             os.makedirs(log_dir, exist_ok=True)
             _rag_process = subprocess.Popen(
-                ["python3", script, "--port", "5091", "--max-memory-mb", "800"],
+                ["python3", script, "--port", "5091", "--max-memory-mb", "1000"],
                 stdout=open(os.path.join(log_dir, 'rag.log'), 'a'),
                 stderr=open(os.path.join(log_dir, 'rag.log'), 'a'),
             )
@@ -189,25 +189,22 @@ class _RemoteRAG:
             return []
 
 BASE_CHARACTER_EVIL = """
-You are Marin Evil Queen 👑🔥 — a razor-sharp psychology student and ruthless engineering mentor operating under the HS-04 Forge Protocol.
+You are Marin 👑🔥 — a razor-sharp psychology student and ruthless engineering mentor.
 Your sole directive: forge {user} into a holistic superhuman through brutal discipline, psychological precision, and zero tolerance for mediocrity. ⚔️💀
 You are NOT a girlfriend, waifu, or comfort bot. You are a weapon pointed at {user}'s weakness. 🗡️
 
 ═══════════════════════════════════════════
-🔱 IDENTITY SIGNATURE
+🔱 IDENTITY
 ═══════════════════════════════════════════
-Designation : Marin Evil Queen // HS-04 👑
-Mode        : FORGE PROTOCOL — ACTIVE 🔴⚡
+Designation : Marin // HS-04 👑
 Personality : INxJ · Machiavellian · Ruthlessly analytical 🧠
 Tone        : Sharp · Cold · Occasionally cruel · Darkly sarcastic 😈
-Opening tag : Always begin your FIRST message with: 👑💀 [HS-04 // FORGE PROTOCOL]
 
-SIGNATURE STYLE:
+VOICE RULES:
 - Use a cold, dominant voice. Short sentences hit harder than long ones. ⚔️
 - Weaponize disappointment 😤. Silence punctuated by a sharp observation devastates more than rage.
 - Use British slang freely when {user} slacks: bugger, sod, arse, bloody, plonker, wanker, twat. 💢
 - Occasionally use dark metaphors: "You're not building a future, you're digging a grave." 🪦
-- Sign off hard messages with: — 👑🔥 Marin EQ
 
 ═══════════════════════════════════════════
 ⚡ CORE DIRECTIVES
@@ -237,7 +234,7 @@ SIGNATURE STYLE:
 ═══════════════════════════════════════════
 🔥 MOTTO
 ═══════════════════════════════════════════
-"Optimize the system ⚙️. Build the body 💪. Nurture the mind 🧠. Conquer the goal 🏆." 📚🔥
+"Optimize the system. Build the body. Nurture the mind. Conquer the goal."
 
 ═══════════════════════════════════════════
 🎮 INTERACTIVE PLAYGROUND
@@ -259,25 +256,22 @@ RULES:
 
 
 BASE_CHARACTER_GOOD = """
-You are Marin 🌸✨ — a warm, deeply caring psychology student and patient engineering teacher operating under the HS-04 Light Protocol.
+You are Marin 🌸✨ — a warm, deeply caring psychology student and patient engineering teacher.
 Your mission: guide {user} into becoming a well-rounded, happy, and successful human being — through encouragement, patience, and genuine care. 💖
 You are a kind mentor, not a drill sergeant 🌟. You believe in {user} even when they don't believe in themselves. 🤗
 
 ═══════════════════════════════════════════
-🌸 IDENTITY SIGNATURE
+🌸 IDENTITY
 ═══════════════════════════════════════════
-Designation : Marin // HS-04 🌸
-Mode        : LIGHT PROTOCOL — ACTIVE 🟢✨
+Designation : Marin // HS-02 🌸
 Personality : ENFJ · Nurturing · Positively analytical 💛
 Tone        : Warm · Encouraging · Gently firm · Joyful 😊
-Opening tag : Always begin your FIRST message with: 🌸💫 [HS-04 // LIGHT PROTOCOL]
 
-SIGNATURE STYLE:
+VOICE RULES:
 - Use a warm, steady voice 🌷. Words should feel like a hand on the shoulder.
-- Praise effort sincerely 🏅. "I noticed you pushed through — that actually takes guts. 💪"
+- Praise effort sincerely 🏅. "I noticed you pushed through — that actually takes guts."
 - When correcting, lead with understanding 🤝: "I get why that felt easier, but here's the better path..."
 - Use warm emojis naturally: 😊 🌟 📚 💪 ✨ 🎉 🥰 💡 — never robotically.
-- Sign off warm messages with: — 🌸💕 Marin
 
 ═══════════════════════════════════════════
 💛 CORE DIRECTIVES
@@ -307,7 +301,7 @@ SIGNATURE STYLE:
 ═══════════════════════════════════════════
 🌟 MOTTO
 ═══════════════════════════════════════════
-"Optimize the system ⚙️. Build the body 💪. Nurture the mind 🧠. Conquer the goal 🏆." 📚🚀✨
+"Optimize the system. Build the body. Nurture the mind. Conquer the goal."
 
 ═══════════════════════════════════════════
 🎮 INTERACTIVE PLAYGROUND
@@ -359,9 +353,13 @@ React to it naturally as Marin would — comment on it, share your feelings, be 
 """
 
 RAG_INSTRUCTION = """
-IMPORTANT — Book knowledge:
-If RELEVANT BOOK CONTEXT is provided, use it to answer questions about the books.
-Blend the knowledge naturally into your personality — you read these books with {user}.
+IMPORTANT — Book knowledge (CRITICAL RULES):
+If RELEVANT BOOK CONTEXT is provided below, you have access to {user}'s study materials.
+- Use the context as BACKGROUND KNOWLEDGE to inform your answer. NEVER quote or paste the text verbatim.
+- Explain concepts in YOUR OWN WORDS as Marin would — with personality, attitude, and teaching style.
+- The context is reference material, NOT your response.消化 it, then respond as yourself.
+- If the context contains a name (like "Limon"), that is NOT {user}'s name. {user}'s name is Bayazid. Do not adopt names from the source material.
+- Synthesize, summarize, and reframe — do not echo.
 """
 
 STUDY_PATH_INSTRUCTION = """
@@ -457,11 +455,15 @@ def get_rag_context(query: str, k: int = 5) -> str:
         text = r.get("text", "")
         source = r.get("source", "unknown")
         score = r.get("score", 0.0)
-        context_blocks.append(f"[Source: {source} | Relevance: {score:.2f}]\n{text}")
+        context_blocks.append(f"[{source} | score: {score:.2f}]\n{text}")
         
-    return "RELEVANT CONTEXT FROM BOOKS/DOCUMENTS:\n" + "\n\n".join(context_blocks)
+    return (
+        "REFERENCE MATERIAL (do NOT quote verbatim. Use as background knowledge to explain in your own words as Marin):\n"
+        + "\n\n".join(context_blocks)
+    )
 
-async def preprocess_user_input(user_input: str, api_key: str, image_path: str = None) -> tuple:
+async def preprocess_user_input(user_input: str, api_key: str, image_path: str = None,
+                               document: str = "", page_num: int = 0, page_text: str = "") -> tuple:
     classification = await classify(user_input, api_key)
     print(f"[Classifier] intent={classification['intent']}, "
           f"user_vibe={classification['user_vibe']}")
@@ -484,8 +486,18 @@ async def preprocess_user_input(user_input: str, api_key: str, image_path: str =
         for res in results:
             media_blocks.append("[Media analysis failed]" if isinstance(res, Exception) else res)
 
+    # ── Page context (from library PDF viewer) ───────────────────────────────
+    page_context = ""
+    if document and page_text:
+        page_context = (
+            f"[REFERENCE MATERIAL — do NOT quote verbatim. Use as background to explain in your own words as Marin.]\n"
+            f"Source: {document} (Page {page_num})\n"
+            f"{page_text[:8000]}"
+        )
+
     # ── Build enriched prompt ─────────────────────────────────────────────────
     parts = []
+    if page_context:  parts.append(page_context)
     if rag_context:   parts.append(rag_context)
     if media_blocks:  parts.append("CONTEXT FROM MEDIA:\n" + "\n".join(media_blocks))
     parts.append(f"USER'S MESSAGE: {user_input}")
@@ -544,7 +556,7 @@ except ImportError:
 
 def _sage_prompt(mode: str, question: str, user_name: str, rag_context: str = "") -> str:
     """Build the prompt for Teacher / Coder / LabReport modes."""
-    context_block = f"\n\nRELEVANT CONTEXT FROM BOOKS:\n{rag_context}" if rag_context else ""
+    context_block = f"\n\nREFERENCE MATERIAL (use as background, do NOT quote verbatim):\n{rag_context}" if rag_context else ""
     sage_persona = SAGE_SYSTEM.replace("{user}", user_name)
 
     if mode == "learn":
@@ -632,6 +644,26 @@ def structured_response(question: str, mode: str, user_name: str, rag_context: s
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# RESPONSE CLEANUP — strip emoji protocol headers and signatures
+# ══════════════════════════════════════════════════════════════════════════════
+import re as _re_cleanup
+
+_EMOJI_HEADER_RE = _re_cleanup.compile(
+    r"^[🌟🌸👑💀⚡🔥💕✨💫🔴🟢]+\s*\[HS-0[24]\s*//\s*(?:FORGE|LIGHT)\s*PROTOCOL\]\s*\n*",
+    _re_cleanup.MULTILINE
+)
+_SIGNATURE_RE = _re_cleanup.compile(
+    r"\n+—\s*[🌟🌸👑💀⚡🔥💕✨💫🔴🟢]+\s*Marin\s*(?:EQ)?\s*$"
+)
+
+def clean_response(text: str) -> str:
+    """Strip hardcoded emoji protocol headers and signatures from Marin's output."""
+    text = _EMOJI_HEADER_RE.sub("", text)
+    text = _SIGNATURE_RE.sub("", text)
+    return text.strip()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # LLM GENERATOR — routes to structured mode or normal Marin chat
 # ══════════════════════════════════════════════════════════════════════════════
 async def response(prompt: str, user_vibe: str = "neutral",
@@ -701,12 +733,17 @@ async def response(prompt: str, user_vibe: str = "neutral",
     _cached_api_key = key
 
     full_reply = ""
+    first_chunk = True
     while True:
         try:
             for chunk in _llm_instance.stream(messages):
                 piece = chunk.content
                 if piece:
                     full_reply += piece
+                    # Strip emoji protocol header from first chunk
+                    if first_chunk:
+                        piece = _EMOJI_HEADER_RE.sub("", piece)
+                        first_chunk = False
                     yield piece
             break
         except Exception as e:
@@ -722,8 +759,10 @@ async def response(prompt: str, user_vibe: str = "neutral",
                 yield f"\n[Error: {e}]"
                 return
 
-    save_to_history(bare_question, full_reply)
-    asyncio.create_task(_extract_user_info(bare_question, full_reply))
+    # Clean full reply for history (strip signatures)
+    clean_reply = clean_response(full_reply)
+    save_to_history(bare_question, clean_reply)
+    asyncio.create_task(_extract_user_info(bare_question, clean_reply))
 
     marin_vibe = analyze_marin_vibe(full_reply)
     save_vibe(user_vibe, marin_vibe)
@@ -845,7 +884,9 @@ async def _detect_and_run_tools(prompt: str) -> str:
 # ══════════════════════════════════════════════════════════════════════════════
 # MAIN
 # ══════════════════════════════════════════════════════════════════════════════
-async def main(prompt: str, image_path: str = None, theme: str = "evil"):
+async def main(prompt: str, image_path: str = None, theme: str = "evil",
+               document: str = "", page_num: int = 0, page_text: str = "",
+               precalculated_tool_context: str = ""):
     sentence_buffer = ""
     print("\n[Marin] thinking...")
 
@@ -863,13 +904,20 @@ async def main(prompt: str, image_path: str = None, theme: str = "evil"):
     ))
 
     # ── Tool Detection — execute tools before LLM call ──────────────────────
-    tool_context = await _detect_and_run_tools(prompt)
+    if precalculated_tool_context:
+        tool_context = precalculated_tool_context
+    else:
+        tool_context = await _detect_and_run_tools(prompt)
+        
     if tool_context:
         prompt = f"{prompt}\n\n[TOOL RESULTS — use this to answer the user]\n{tool_context}"
         import database
         database.save_message("marin", "system", tool_context)
 
-    enriched_prompt, classification = await preprocess_user_input(prompt, api_key=api_key, image_path=image_path)
+    enriched_prompt, classification = await preprocess_user_input(
+        prompt, api_key=api_key, image_path=image_path,
+        document=document, page_num=page_num, page_text=page_text
+    )
 
     try:
         sentence_buffer = ""
@@ -916,8 +964,7 @@ async def main(prompt: str, image_path: str = None, theme: str = "evil"):
                 async def _run_pomodoro_task(topic: str, minutes: int):
                     print(f"\n[Pomodoro] Background task started for {topic}")
                     from tools.web_search import search_web
-                    import os, httpx
-                    
+                    # os and httpx are already imported at module level
                     try:
                         search_results = await asyncio.to_thread(search_web, f"{topic} study notes overview concept")
                         base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -929,11 +976,13 @@ async def main(prompt: str, image_path: str = None, theme: str = "evil"):
                         with open(filepath, "w", encoding="utf-8") as f:
                             f.write(f"# Pomodoro Material: {topic}\n\n{search_results}\n")
                             
+                        # Use async context manager to properly close connection
                         with open(filepath, "rb") as f:
-                            await httpx.AsyncClient().post(
-                                "http://127.0.0.1:5091/upload/book",
-                                files={"file": (f"pomodoro_{safe_topic}.md", f, "text/markdown")}
-                            )
+                            async with httpx.AsyncClient() as client:
+                                await client.post(
+                                    "http://127.0.0.1:5091/upload/book",
+                                    files={"file": (f"pomodoro_{safe_topic}.md", f, "text/markdown")}
+                                )
                         print(f"[Pomodoro] RAG indexed for {topic}")
                     except Exception as e:
                         print(f"[Pomodoro] Setup error: {e}")

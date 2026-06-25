@@ -2,12 +2,12 @@ import json, time, os
 import database
 from langchain_openai import ChatOpenAI
 
+# ── Legacy fallback model list ──────────────────────────────────────────────────
 FALLBACK_MODELS = [
     "google/gemma-4-31b-it:free",
     "google/gemma-4-26b-a4b-it:free",
     "google/gemma-2-9b-it:free",
     "nvidia/nemotron-nano-9b-v2:free",
-    "nvidia/llama-3.2-nv-embedqa-1b-v2:free",
     "liquid/lfm-40b:free",
     "meta-llama/llama-3.3-70b-instruct:free",
     "qwen/qwen-2.5-72b-instruct:free",
@@ -17,19 +17,19 @@ FALLBACK_MODELS = [
 ]
 
 COOLDOWN_SECONDS = 5 * 3600  # 5 hours
-PROXY_URL = os.getenv("LLM_PROXY_URL", "http://host.docker.internal:8005/v1")
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://host.docker.internal:11434")
 
-def _get_rate_limits():
+# ── Rate limit helpers ──────────────────────────────────────────────────────────
+def _get_rate_limits() -> dict:
     raw = database.get_state("RATE_LIMITS", "{}")
     if isinstance(raw, dict):
         return raw
     try:
         return json.loads(raw)
-    except:
+    except Exception:
         return {}
 
-def _save_rate_limits(limits):
+def _save_rate_limits(limits: dict):
     database.set_state("RATE_LIMITS", json.dumps(limits))
 
 def report_rate_limit(key: str, model: str):
@@ -40,72 +40,158 @@ def report_rate_limit(key: str, model: str):
 def _is_rate_limited(key: str, model: str, limits: dict, now: float) -> bool:
     return f"{key}|{model}" in limits and (now - limits[f"{key}|{model}"]) < COOLDOWN_SECONDS
 
-def get_best_llm():
-    """Returns a ChatOpenAI instance. Proxy is PRIMARY. Direct keys are fallback. Ollama is last resort."""
-    keys_str = database.get_state("OPENROUTER_API_KEY", "")
-    all_keys = [k.strip() for k in keys_str.split(",") if k.strip()]
+# ── Provider helpers ────────────────────────────────────────────────────────────
+def get_providers() -> list:
+    """
+    Returns the ordered provider list. Each provider is a dict:
+    {
+      "name": str,
+      "base_url": str,
+      "api_keys": [str, ...],   # multiple keys, round-robined
+      "models": [str, ...],     # selected model IDs
+      "enabled": bool,
+      "priority": int
+    }
+    If no PROVIDERS key, falls back to legacy OPENROUTER_API_KEY.
+    """
+    raw = database.get_state("PROVIDERS")
+    if raw and raw != "[]":
+        try:
+            providers = json.loads(raw) if isinstance(raw, str) else raw
+            if isinstance(providers, list) and providers:
+                return sorted(providers, key=lambda p: p.get("priority", 99))
+        except Exception:
+            pass
 
-    # Priority: ACTIVE_MODEL > SELECTED_MODELS > FALLBACK_MODELS > hardcoded
+    # ── Migrate legacy keys to provider slot ──────────────────────────────────
+    legacy_key = database.get_state("OPENROUTER_API_KEY", "")
+    legacy_keys = [k.strip() for k in legacy_key.split(",") if k.strip()] if legacy_key else []
+
     active_model = database.get_state("ACTIVE_MODEL", "")
-    custom_models = database.get_state("SELECTED_MODELS") or database.get_state("FALLBACK_MODELS")
-    models = custom_models if custom_models else FALLBACK_MODELS
+    custom_models_raw = database.get_state("SELECTED_MODELS") or database.get_state("FALLBACK_MODELS")
+    legacy_models = custom_models_raw if isinstance(custom_models_raw, list) else FALLBACK_MODELS
 
-    ordered = []
-    if active_model:
-        ordered.append(active_model)
-    for m in models:
-        if m != active_model:
-            ordered.append(m)
-    if not ordered:
-        ordered = FALLBACK_MODELS
+    providers = []
+    if legacy_keys:
+        providers.append({
+            "name": "OpenRouter",
+            "base_url": "https://openrouter.ai/api/v1",
+            "api_keys": legacy_keys,
+            "models": legacy_models,
+            "enabled": True,
+            "priority": 1,
+        })
 
+    # Legacy proxy support
+    proxy_url = os.getenv("LLM_PROXY_URL", "")
+    if proxy_url:
+        providers.append({
+            "name": "Proxy",
+            "base_url": proxy_url,
+            "api_keys": ["proxy-rotate"],
+            "models": legacy_models,
+            "enabled": True,
+            "priority": 0,
+        })
+        providers.sort(key=lambda p: p.get("priority", 99))
+
+    return providers
+
+def save_providers(providers: list):
+    database.set_state("PROVIDERS", json.dumps(providers))
+
+# ── Deep model list ─────────────────────────────────────────────────────────────
+def get_deep_models() -> list:
+    raw = database.get_state("DEEP_MODELS")
+    if raw and raw != "[]":
+        try:
+            models = json.loads(raw) if isinstance(raw, str) else raw
+            if isinstance(models, list):
+                return models
+        except Exception:
+            pass
+    # Default deep models
+    return [
+        "qwen/qwen3-coder-480b-a35b:free",
+        "nousresearch/hermes-3-llama-3.1-405b:free",
+        "meta-llama/llama-3.3-70b-instruct:free",
+    ]
+
+def save_deep_models(models: list):
+    database.set_state("DEEP_MODELS", json.dumps(models))
+
+# ── Core LLM selector ──────────────────────────────────────────────────────────
+def get_best_llm(deep: bool = False):
+    """
+    Returns (ChatOpenAI instance, api_key, model) or None.
+
+    Resolution order:
+    1. Iterate providers by priority (enabled=True only)
+       - For each provider: iterate selected models
+         - For each model: try all api_keys (round-robin style, skip rate-limited)
+    2. If deep=True: use DEEP_MODELS list across all providers first
+    3. Ollama local (last resort)
+    """
     limits = _get_rate_limits()
     now = time.time()
 
-    # Clean up old limits
-    cleaned_limits = {k: v for k, v in limits.items() if now - v < COOLDOWN_SECONDS}
-    if len(cleaned_limits) != len(limits):
-        _save_rate_limits(cleaned_limits)
-        limits = cleaned_limits
+    # Prune stale rate limits
+    cleaned = {k: v for k, v in limits.items() if now - v < COOLDOWN_SECONDS}
+    if len(cleaned) != len(limits):
+        _save_rate_limits(cleaned)
+        limits = cleaned
 
-    # 1. Proxy first — if not rate limited for ALL models
-    proxy_all_limited = all(_is_rate_limited("proxy", m, limits, now) for m in ordered[:3])
-    if not proxy_all_limited:
-        for model in ordered:
-            if not _is_rate_limited("proxy", model, limits, now):
-                try:
-                    llm = ChatOpenAI(
-                        model=model,
-                        openai_api_key="proxy-rotate",
-                        openai_api_base=PROXY_URL,
-                        max_retries=0
-                    )
-                    return llm, "proxy", model
-                except:
-                    pass
+    providers = get_providers()
 
-    # 2. Direct keys — bypass proxy
-    for model in ordered:
-        for key in all_keys:
-            if not _is_rate_limited(key, model, limits, now):
-                base_url = "https://openrouter.ai/api/v1"
-                actual_model = model
+    # In deep mode, first try deep_models across all providers
+    if deep:
+        deep_model_ids = get_deep_models()
+        for provider in providers:
+            if not provider.get("enabled", True):
+                continue
+            base_url = provider.get("base_url", "")
+            api_keys = provider.get("api_keys", [])
+            if not api_keys or not base_url:
+                continue
+            for model in deep_model_ids:
+                for key in api_keys:
+                    if not _is_rate_limited(key, model, limits, now):
+                        try:
+                            llm = ChatOpenAI(
+                                model=model,
+                                openai_api_key=key,
+                                openai_api_base=base_url,
+                                max_retries=0
+                            )
+                            return llm, key, model
+                        except Exception:
+                            pass
+        # Fall through to normal model selection if deep models all exhausted
 
-                if key.startswith("sk-proj-"):
-                    base_url = "https://api.openai.com/v1"
-                    actual_model = "gpt-4o-mini"
-                elif key.startswith("AIza"):
-                    base_url = "https://generativelanguage.googleapis.com/v1beta/openai/"
-                    actual_model = "gemini-1.5-flash"
+    # Normal model selection across providers
+    for provider in providers:
+        if not provider.get("enabled", True):
+            continue
+        base_url = provider.get("base_url", "")
+        api_keys = provider.get("api_keys", [])
+        models = provider.get("models", [])
+        if not api_keys or not base_url or not models:
+            continue
+        for model in models:
+            for key in api_keys:
+                if not _is_rate_limited(key, model, limits, now):
+                    try:
+                        llm = ChatOpenAI(
+                            model=model,
+                            openai_api_key=key,
+                            openai_api_base=base_url,
+                            max_retries=0
+                        )
+                        return llm, key, model
+                    except Exception:
+                        pass
 
-                return ChatOpenAI(
-                    model=actual_model,
-                    openai_api_key=key,
-                    openai_api_base=base_url,
-                    max_retries=0
-                ), key, model
-
-    # 3. Absolute fallback — Ollama local (always available, no rate limits)
+    # Last resort — Ollama local
     try:
         llm = ChatOpenAI(
             model="marin:latest",
@@ -114,15 +200,7 @@ def get_best_llm():
             max_retries=0
         )
         return llm, "ollama", "marin:latest"
-    except:
+    except Exception:
         pass
-
-    # 4. Last resort — first key, first model
-    if all_keys:
-        return ChatOpenAI(
-            model=ordered[0],
-            openai_api_key=all_keys[0],
-            openai_api_base="https://openrouter.ai/api/v1"
-        ), all_keys[0], ordered[0]
 
     return None

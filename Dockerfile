@@ -29,8 +29,8 @@ ENV PG_DB_NAME=postgres
 ENV PG_USER=postgres
 ENV PG_PASSWORD=postgres
 
-# Make run.sh executable
-RUN chmod +x run.sh
+# Make scripts executable
+RUN chmod +x run.sh entrypoint.sh
 
 # Run both services
-CMD ["./run.sh"]
+CMD ["./entrypoint.sh"]

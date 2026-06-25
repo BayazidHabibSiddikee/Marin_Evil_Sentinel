@@ -54,27 +54,23 @@ except ImportError:
 # ═══════════════════════════════════════════════════════════════════════════════
 try:
     from config import (
-        BASE_DIR, DOC_DIR, BOOKS_DIR, CODE_DIR, FAISS_DIR,
-        get_books_size_mb, get_doc_size_mb, get_kb_size_mb,
+        BASE_DIR, BOOKS_DIR, CODE_DIR, FAISS_DIR,
+        get_books_size_mb, get_kb_size_mb,
         TOTAL_KB_MAX_MB, BOOKS_MAX_MB,
     )
-    DOC_DIR = Path(DOC_DIR)
     BOOKS_DIR = Path(BOOKS_DIR)
     CODE_DIR = Path(CODE_DIR)
     FAISS_DIR = Path(FAISS_DIR)
 except ImportError:
     BASE_DIR  = os.path.dirname(os.path.abspath(__file__))
-    DOC_DIR   = Path(BASE_DIR) / "doc"
     BOOKS_DIR = Path(BASE_DIR) / "books"
     CODE_DIR  = Path(BASE_DIR) / "code"
     FAISS_DIR = Path(BASE_DIR) / "storage" / "faiss_db"
     TOTAL_KB_MAX_MB = 200
     BOOKS_MAX_MB    = 96
     def get_books_size_mb(): return 0.0
-    def get_doc_size_mb():   return 0.0
     def get_kb_size_mb():    return 0.0
 
-DOC_DIR.mkdir(exist_ok=True)
 BOOKS_DIR.mkdir(exist_ok=True)
 CODE_DIR.mkdir(exist_ok=True)
 FAISS_DIR.mkdir(exist_ok=True, parents=True)
@@ -170,6 +166,8 @@ class KnowledgeBase:
         self._bm25_docs   = []      # raw result dicts (parallel to _bm25_corpus)
         # Improvement 3: cross-encoder re-ranker
         self._reranker    = None
+        # Indexing progress tracker
+        self._index_progress = {"state": "idle", "current": 0, "total": 0, "file": ""}
         self._boot()
 
     # ── Startup ───────────────────────────────────────────────────────────────
@@ -243,7 +241,6 @@ class KnowledgeBase:
     def _all_files(self) -> List[Path]:
         files = []
         for ext in DOC_EXTENSIONS:
-            files.extend(DOC_DIR.glob(f"*{ext}"))
             files.extend(BOOKS_DIR.glob(f"*{ext}"))
         for ext in CODE_EXTENSIONS:
             files.extend(CODE_DIR.glob(f"*{ext}"))
@@ -260,11 +257,16 @@ class KnowledgeBase:
             return
         print(f"📚 Indexing {len(new_files)} new file(s)...")
         self._create_embeddings()
-        for path in new_files:
+        total = len(new_files)
+        self._index_progress = {"state": "indexing", "current": 0, "total": total, "file": ""}
+        for i, path in enumerate(new_files):
+            self._index_progress["current"] = i + 1
+            self._index_progress["file"] = path.name
             self._index_single_file(path)
         self._save_faiss()
         self._save_manifest()
         _compact()
+        self._index_progress = {"state": "idle", "current": 0, "total": 0, "file": ""}
         print(f"✅ Done: {len(self.manifest['indexed'])} total indexed")
 
     def _save_faiss(self):
@@ -429,12 +431,26 @@ class KnowledgeBase:
         return ""
 
     # ── Core indexer ──────────────────────────────────────────────────────────
+    MAX_INDEX_SIZE_MB = 50   # Warn when document exceeds this
+    MAX_INDEX_PAGES  = 100  # For oversized PDFs, index only first N pages
+
     def _index_single_file(self, path: Path):
         name = path.name
+        file_size_mb = path.stat().st_size / (1024 * 1024)
+
+        # Warn on large files but still index them
+        if file_size_mb > self.MAX_INDEX_SIZE_MB:
+            print(f"  ⚠️ {name}: {file_size_mb:.1f} MB exceeds {self.MAX_INDEX_SIZE_MB} MB — indexing may be slow")
+
         try:
             documents = self._load_file(path)
             if not documents:
                 raise ValueError("File produced zero content")
+
+            # Cap page count for oversized PDFs
+            if path.suffix.lower() == '.pdf' and len(documents) > self.MAX_INDEX_PAGES:
+                print(f"  ⚠️ {name}: {len(documents)} pages — capping to first {self.MAX_INDEX_PAGES}")
+                documents = documents[:self.MAX_INDEX_PAGES]
 
             splitter = self._get_splitter(path)
             chunks   = splitter.split_documents(documents)
@@ -709,6 +725,9 @@ class KnowledgeBase:
             "failed":  self.manifest["failed"],
         }
 
+    def get_index_progress(self) -> Dict[str, Any]:
+        return dict(self._index_progress)
+
 
 # Global instance
 kb = KnowledgeBase()
@@ -738,6 +757,21 @@ async def search(req: SearchRequest):
 async def context(req: SearchRequest):
     ctx = await asyncio.to_thread(kb.get_context, req.query, min(req.k, 20), req.source_type)
     return {"context": ctx}
+
+
+@app.get("/index_progress")
+async def index_progress():
+    return kb.get_index_progress()
+
+
+@app.post("/reindex")
+async def reindex():
+    """Trigger background re-indexing of new files."""
+    import asyncio
+    async def _do_reindex():
+        await asyncio.to_thread(kb._index_new_files)
+    asyncio.create_task(_do_reindex())
+    return {"status": "reindex started"}
 
 
 # ── Upload ────────────────────────────────────────────────────────────────────
@@ -771,15 +805,14 @@ def _check_kb_quota(upload_size_mb: float, label: str):
 
 @app.post("/upload/doc")
 async def upload_doc(file: UploadFile = File(...)):
-    """Upload PDF, DOCX, TXT, or MD into doc/ and index immediately."""
+    """Upload PDF, DOCX, TXT, or MD into books/ and index immediately."""
     ext = Path(file.filename).suffix.lower()
     if ext not in DOC_EXTENSIONS:
         raise HTTPException(400, f"Unsupported type '{ext}'. Allowed: {DOC_EXTENSIONS}")
-    # Read into memory first so we know the size before writing to disk
     content = await file.read()
     upload_size_mb = len(content) / (1024 * 1024)
-    _check_kb_quota(upload_size_mb, "doc")
-    dest = DOC_DIR / file.filename
+    _check_kb_quota(upload_size_mb, "book")
+    dest = BOOKS_DIR / file.filename
     with open(dest, "wb") as f:
         f.write(content)
     result = await asyncio.to_thread(kb.add_file, dest)
@@ -839,17 +872,15 @@ async def report():
 @app.get("/health")
 async def health():
     kb_used  = round(get_kb_size_mb(), 1)
-    doc_used = round(get_doc_size_mb(), 1)
     bk_used  = round(get_books_size_mb(), 1)
     return {
         "status":        "operational",
         "port":          5091,
         "total_indexed": len(kb.manifest["indexed"]),
         "ready":         kb._raw_index is not None,
-        "doc_dir":       str(DOC_DIR),
+        "books_dir":     str(BOOKS_DIR),
         "code_dir":      str(CODE_DIR),
         "storage": {
-            "doc_mb":       doc_used,
             "books_mb":     bk_used,
             "total_kb_mb":  kb_used,
             "limit_kb_mb":  TOTAL_KB_MAX_MB,

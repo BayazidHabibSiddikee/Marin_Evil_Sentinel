@@ -1,8 +1,8 @@
 # Marin Kitagawa — AI Study Partner
 
-A proactive, self-hosted AI study companion with RAG, multi-agent tools, spaced repetition flashcards, and structured learning modes.
+A self-hosted AI study companion with dual personalities (HS-02 Standard / HS-04 Evil), RAG, PDF viewer, multi-agent tools, and structured learning modes.
 
-Built with FastAPI, LangChain/OpenRouter, FAISS, PostgreSQL, and LangGraph.
+Built with FastAPI, LangChain/OpenRouter, FAISS, PostgreSQL, PDF.js, and LangGraph.
 
 ---
 
@@ -14,23 +14,26 @@ Built with FastAPI, LangChain/OpenRouter, FAISS, PostgreSQL, and LangGraph.
 - [Setup](#setup)
 - [Configuration](#configuration)
 - [API Reference](#api-reference)
-- [Tool Reference](#tool-reference)
 - [File Structure](#file-structure)
 - [How It Works](#how-it-works)
-- [Known Issues & Limitations](#known-issues--limitations)
 - [License](#license)
 
 ---
 
 ## Overview
 
-Marin Kitagawa is a personal AI study partner — not a generic chatbot. She's designed to keep you focused, test your knowledge, and help you learn faster through:
+Marin Kitagawa is a personal AI study partner with two modes:
 
-- **RAG (Retrieval-Augmented Generation)** — drop your textbooks, notes, or code into `doc/` and she'll automatically retrieve relevant knowledge during conversations
-- **Multi-agent tool pipeline** — LangGraph orchestrates 17 background tools (web search, math, quizzes, document conversion, etc.) before she responds
-- **Spaced repetition flashcards** — SuperMemo-2 algorithm tracks what you know and what you need to review
-- **Structured learning modes** — ask for a "plan", "code walkthrough", or "lab report" and get formatted, structured output
-- **Proactive check-ins** — she notices when you're idle and sends encouraging (or nagging) messages via SSE
+- **HS-04 (Evil Mode)** — Ruthless, dominant, British-slang-wielding mentor. Punishes laziness, weaponizes disappointment.
+- **HS-02 (Standard Mode)** — Warm, nurturing, encouraging teacher. Praise-driven, gentle correction.
+
+She's designed to keep you focused, test your knowledge, and help you learn faster through:
+
+- **RAG (Retrieval-Augmented Generation)** — drop textbooks into `books/` and she retrieves relevant knowledge during conversations
+- **PDF Viewer** — read PDFs directly in the library with PDF.js rendering, text selection, page navigation, and reading color customizer
+- **Library Tools** — web search, PDF download, quiz generation, translation, and repo analysis built into the library sidebar
+- **Multi-agent tool pipeline** — LangGraph orchestrates background tools before she responds
+- **Structured learning modes** — "Teacher", "Coder", "Lab Report" output modes
 
 **Default LLM:** `google/gemma-2-9b-it:free` via OpenRouter (free tier)
 **Embedding model:** `all-MiniLM-L6-v2` (local, via FAISS)
@@ -43,10 +46,9 @@ Marin Kitagawa is a personal AI study partner — not a generic chatbot. She's d
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                    Frontend (HTML/JS)                     │
-│              templates/marin_chat.html                    │
 │   ┌──────────┐  ┌──────────┐  ┌──────────────────────┐  │
-│   │ Sidebar   │  │ Chat UI  │  │ Flashcard/Pomodoro   │  │
-│   │ Tools     │  │ Streaming│  │ Cards + Timer        │  │
+│   │ Landing  │  │ Chat UI  │  │ Library (PDF.js)     │  │
+│   │ Page     │  │ Streaming│  │ Tools + RAG Status   │  │
 │   └──────────┘  └──────────┘  └──────────────────────┘  │
 └────────────────────────┬────────────────────────────────┘
                          │ HTTP / SSE
@@ -54,127 +56,109 @@ Marin Kitagawa is a personal AI study partner — not a generic chatbot. She's d
 │                 main.py (FastAPI :5090)                   │
 │  ┌──────────┐  ┌──────────┐  ┌──────────────────────┐  │
 │  │ Onboarding│  │ Settings │  │ Chat + Tool APIs     │  │
-│  │ Flow      │  │ API      │  │ (16 endpoints)       │  │
+│  │ Flow      │  │ API      │  │ Document APIs        │  │
 │  └──────────┘  └──────────┘  └──────────────────────┘  │
 └────────┬───────────────────────────────────┬────────────┘
          │                                   │
 ┌────────▼──────────┐            ┌───────────▼───────────┐
-│    marin.py        │            │  proactive_engine.py  │
-│  ┌──────────────┐  │            │  ┌────────────────┐  │
-│  │ Preprocessor  │  │            │  │ Idle Detection │  │
-│  │ (RAG+YT+IMG) │  │            │  │ SSE Broadcast  │  │
-│  └──────┬───────┘  │            │  │ Quiet Hours    │  │
-│         │          │            │  └────────────────┘  │
-│  ┌──────▼───────┐  │            └──────────────────────┘
-│  │ LangGraph    │  │
-│  │ Pipeline     │  │            ┌──────────────────────┐
-│  │ (17 tools)   │  │            │   rag_server.py       │
-│  └──────┬───────┘  │            │   (FastAPI :5091)     │
-│         │          │            │  ┌────────────────┐  │
-│  ┌──────▼───────┐  │   HTTP     │  │ FAISS Index     │  │
-│  │ Persona      │  │────────────│  │ doc/ + code/    │  │
-│  │ (Streaming)  │  │            │  │ Document Loaders│  │
-│  └──────────────┘  │            │  └────────────────┘  │
-└────────────────────┘            └──────────────────────┘
-         │                                   │
-         └───────────┬───────────────────────┘
-              ┌──────▼──────┐
-              │  database.py │
-              │  PostgreSQL  │
-              │  (6 tables)  │
-              └──────────────┘
+│    marin.py        │            │   rag_server.py        │
+│  ┌──────────────┐  │            │   (FastAPI :5091)     │
+│  │ Preprocessor  │  │   HTTP     │  ┌────────────────┐  │
+│  │ (RAG+Page)   │  │────────────│  │ FAISS Index     │  │
+│  └──────┬───────┘  │            │  │ books/ + code/  │  │
+│  ┌──────▼───────┐  │            │  │ Hybrid Search   │  │
+│  │ Persona      │  │            │  └────────────────┘  │
+│  │ (Streaming)  │  │            └──────────────────────┘
+│  └──────────────┘  │
+└────────────────────┘
+         │
+┌────────▼──────────┐
+│   database.py      │
+│   PostgreSQL       │
+│   (6 tables)       │
+└────────────────────┘
 ```
 
 **Ports:**
-- `:5090` — Main FastAPI server (chat, settings, tools)
+- `:5090` — Main FastAPI server (chat, settings, tools, library)
 - `:5091` — RAG server (FAISS vector search, document indexing)
 
 ---
 
 ## Features
 
-### 🏰 Landing Page
+### Dual Personality System
 
-![Landing Page](static/images/screenshots/landing_page.png)
+| Mode | Designation | Tone | Tag |
+|------|-------------|------|-----|
+| Evil | HS-04 | Sharp, cold, darkly sarcastic, British slang | 👑🔥 |
+| Standard | HS-02 | Warm, encouraging, gently firm | 🌸✨ |
 
-The **Landing Page** is the gateway to the system. It features a bold, atmospheric design where you can easily toggle between standard operation and the immersive "Evil Queen" protocol. From here, you can seamlessly launch into the main Chat interface or enter the Library ("Enter Forge").
+Toggle between modes from the library or chat sidebar. Each mode has its own character prompt, reading colors, and avatar.
+
+### Landing Page
+
+Bold, atmospheric gateway. Toggle between Standard and Evil mode, then launch into Chat or Library ("Enter Forge").
 
 ### Core Chat
+
 - Streaming responses with real-time token delivery
-- Vibe detection (lovely, flirty, angry, sad, excited, playful, neutral) — Marin adapts her tone
-- Intent classification (chat, image generation, game requests) — zero-RAM regex-based
-- Chat history persisted in PostgreSQL (last 30 messages loaded per session)
+- Vibe detection (lovely, flirty, angry, sad, excited, playful, neutral)
+- Intent classification (chat, image generation, learn, code, lab)
+- Chat history persisted in PostgreSQL
+- RAG context injection — relevant excerpts from your books injected into prompts
+- Page-aware context — when reading a PDF, Marin gets the current page text
+
+### Library & PDF Viewer
+
+- **PDF.js rendering** — browser-native PDF display with text selection
+- **Page navigation** — editable page number input, prev/next buttons, zoom controls
+- **Reading color customizer** — customizable background/text/highlight colors with presets (evil, warm, paper, etc.)
+- **Theme-aware selection** — text selection color matches the current theme
+- **RAG progress indicator** — pulsing dot + percentage bar when indexing new files
+- **Document management** — upload, delete, open documents from the sidebar
+
+### Library Tools
+
+Built into the library sidebar — compact `[input] [button]` rows:
+
+| Tool | Description |
+|------|-------------|
+| **Repo/Link** | Analyze GitHub repos and URLs |
+| **Quiz** | Generate a quiz on any topic |
+| **Translate** | Translate text (9 languages) |
+| **Web Search** | DuckDuckGo search |
+| **PDF Download** | Download PDFs directly to `books/` with auto-RAG indexing |
+
+Tools auto-send results to Marin so she responds about them in chat.
 
 ### RAG (Retrieval-Augmented Generation)
-- Drop files into `doc/`, `books/`, or `code/` directories
-- Auto-indexed by `rag_server.py` on startup and after each upload
-- Supports: PDF (with OCR fallback), DOCX, TXT, MD, PY, C/CPP/H, XLSX, HTML
-- Hybrid search: FAISS vector similarity + metadata filtering by source type
-- Context injection: relevant excerpts injected into Marin's system prompt
 
-### 📚 Library View
-
-![Library View](static/images/screenshots/library_view.png)
-
-The built-in **Library Section** acts as a centralized hub for all your books and study materials. 
-* **Read Alongside Marin:** You can open and read your downloaded docs, PDFs, and textbooks directly from the library viewer.
-* **Direct Questioning:** Ask Marin anything about the contents of the book directly from the interface while you study.
-* **Handles Massive Files:** Marin can effortlessly read and process heavy documents—even if the size of your books exceeds 50MB!
-
-### 🛠️ Quick Action Sidebar Tools
-
-You don't need to use chat to perform common actions! The left sidebar features direct access to Marin's tools:
-* **YouTube Transcript:** Extract and analyze transcripts directly from video URLs.
-* **Convert Doc:** Quickly convert between PDF and DOCX.
-* **Web Search:** Perform instant web searches.
-* **Download PDF:** Save PDFs straight to your library for RAG indexing.
-* **Repo / Link Analyzer:** Analyze GitHub repositories and URLs.
-* **Quiz Generator:** Spin up a study quiz based on any topic.
-* **Translate:** Quick text translation support.
+- Drop files into `books/` or `code/` directories
+- Auto-indexed on startup and after each upload
+- Supports: PDF (with OCR fallback), DOCX, TXT, MD, PY, C/CPP/H
+- Hybrid search: FAISS vector similarity + BM25 keyword search + cross-encoder re-ranking
+- Page-aware context — PDF page text injected per-message
+- Progress tracking — real-time indexing status via `/index_progress` endpoint
 
 ### Structured Output Modes
-- **Teacher Mode** (`learn` intent): concept → explanation → math → takeaways
-- **Coder Mode** (`code` intent): language → snippet → explanation → dependencies
-- **Lab Report Mode** (`lab` intent): title → objective → equipment → procedure → results
-- Rendered as formatted cards in the frontend
+
+- **Teacher Mode** (`learn`): concept → explanation → math → takeaways
+- **Coder Mode** (`code`): language → snippet → explanation → dependencies
+- **Lab Report Mode** (`lab`): title → objective → equipment → procedure → results
 
 ### Study Tools
-- **Flashcards**: Add cards by topic, SuperMemo-2 spaced repetition (quality 0-5)
-- **Pomodoro Timer**: Frontend countdown widget, auto-generates RAG material for the topic
-- **Quiz Generator**: OpenRouter-powered multiple-choice quizzes with explanations
-- **Study Stats**: Total focus time grouped by topic
 
-### Document Tools
-- PDF ↔ Word conversion (3-tier fallback strategy per direction)
-- Image → PDF, PDF split/merge, Text → PDF
-- Document library browser with content viewer
+- **Flashcards**: SuperMemo-2 spaced repetition (quality 0-5)
+- **Pomodoro Timer**: Focus session tracking
+- **Quiz Generator**: Multiple-choice quizzes with explanations
+- **Study Stats**: Total focus time by topic
 
-### Web & Media
-- DuckDuckGo web search
-- YouTube transcript extraction + auto-translation
-- GitHub repo analysis (shallow clone + README summary)
-- Webpage scraping (BeautifulSoup + curl fallback)
-- Image generation via OpenRouter (Stable Diffusion XL)
+### Proactive Accountability Engine
 
-### Utility Tools
-- Translation (15 languages via deep-translator)
-- QR code generation
-- Unit conversion (length, weight, temp, data, speed, area, volume)
-- Safe math calculator (AST-based, no eval)
-- Programmer calculator (Dec/Bin/Hex/Oct)
-- Email sending (Gmail SMTP)
-- Bangla voice translator (Google STT + pyttsx3 TTS)
-
-### Desktop & Web Apps
-- Launch 23 desktop apps cross-platform (Chrome, VS Code, Spotify, etc.)
-- Open 22 web apps (ChatGPT, Claude, YouTube, GitHub, etc.)
-
-### 🎯 Proactive Accountability Engine
-- **Keeps you on track:** Marin proactively asks about your goals, tasks, and missions if you get distracted.
 - Monitors idle time: 20min → 2hr → 5hr → 48hr escalation
 - Respects quiet hours (12:00 AM – 7:30 AM)
 - SSE broadcast to connected clients
-- Streak tracking (stops after max escalation tier)
 
 ---
 
@@ -183,28 +167,40 @@ You don't need to use chat to perform common actions! The left sidebar features 
 ### Prerequisites
 
 - **Python 3.10+**
-- **PostgreSQL 15+** (running and accessible)
-- **OpenRouter API key** (free tier works — get one at https://openrouter.ai)
+- **PostgreSQL 15+**
+- **OpenRouter API key** (free tier works — https://openrouter.ai)
+
+### Docker Install (Recommended)
+
+```bash
+# 1. Clone and start
+git clone <your-repo-url>
+cd marin-kitagawa
+docker-compose up --build
+
+# 2. Access at http://localhost:5090
+```
+
+The Docker setup includes:
+- `marin-server` — the app (ports 5090, 5091), runs as root to fix permissions on startup
+- `marin-postgres` — PostgreSQL 15 (port 5432)
+- `entrypoint.sh` — fixes `books/` permissions on every container start
+- Persistent volumes for database, books, code, and generated files
 
 ### Local Install
 
 ```bash
-# 1. Clone the project
+# 1. Clone and setup
 git clone <your-repo-url>
 cd marin-kitagawa
-
-# 2. Create virtual environment
 python3 -m venv .venv
 source .venv/bin/activate
-
-# 3. Install dependencies
 pip install -r requirements.txt
 
-# 4. Ensure PostgreSQL is running
-#    - Create database if needed (defaults: postgres/postgres@localhost:5432)
-#    - Tables are auto-created on first run
+# 2. Ensure PostgreSQL is running
+#    Tables are auto-created on first run
 
-# 5. Run both servers
+# 3. Run both servers
 chmod +x run.sh
 ./run.sh
 
@@ -213,43 +209,22 @@ python3 rag_server.py &     # starts on :5091
 python3 main.py             # starts on :5090
 ```
 
-### Docker Install
-
-```bash
-# 1. Build and start everything (app + PostgreSQL)
-docker-compose up --build
-
-# 2. Access at http://localhost:5090
-```
-
-The Docker setup includes:
-- `marin-server` — the app (ports 5090, 5091)
-- `marin-postgres` — PostgreSQL 15 (port 5432)
-- Persistent volumes for database, documents, and generated files
-
 ### First Run
 
 1. Open `http://localhost:5090`
-2. You'll be redirected to the **onboarding wizard** (`/onboarding`)
-3. Enter your name, study topics, personality preferences
-4. Enter your **OpenRouter API key** (required for LLM)
-5. Optionally configure Telegram bot key, email app password
-6. Click **Initialize** — you're ready to chat
+2. Onboarding wizard — enter your name, study topics, personality preferences
+3. Enter your **OpenRouter API key**
+4. Click **Initialize** — you're ready to chat
 
-### RAG Setup
-
-Drop your study materials into the appropriate directories:
+### Adding Study Materials
 
 ```bash
-# Textbooks, notes, PDFs
-cp ~/Downloads/textbook.pdf doc/
-cp ~/Notes/lecture-notes.docx doc/
+# Textbooks, notes, PDFs — goes to books/
+cp ~/Downloads/textbook.pdf books/
+cp ~/Notes/lecture-notes.docx books/
 
 # Source code projects
 cp -r ~/Projects/myproject code/
-
-# Books (hidden from library UI, but indexed for RAG)
-cp ~/Books/reference.pdf books/
 ```
 
 Files are automatically indexed on server startup. To re-index after adding new files:
@@ -258,63 +233,21 @@ Files are automatically indexed on server startup. To re-index after adding new 
 curl -X POST http://127.0.0.1:5091/reindex
 ```
 
+Or use the **PDF Download** tool in the library — it downloads and auto-indexes.
+
 ---
 
-## ⚙️ Configuration & Settings
-
-![Settings Menu Configuration](static/images/screenshots/settings_view.png)
-
-The application features a comprehensive and user-friendly settings panel that allows you to customize your AI experience, manage API keys, and route specific tasks to different models.
-
-### OpenRouter Integration
-This project integrates directly with **[OpenRouter](https://openrouter.ai/)** to provide a wide variety of LLM options, including both premium and free models. 
-
-Simply paste your OpenRouter API key (`sk-or-...`) into the settings menu to get started. You can add multiple keys if needed.
-
-### Configuration Options
-*   **User Personalization:** Input `Your Name` and `Location` to provide the AI with basic context for more personalized interactions.
-*   **Model Routing:** 
-    *   **Free Models:** Toggle to quickly enable and access free-tier models.
-    *   **Active Model:** Select the primary text model you want to use for the main chat interface.
-    *   **Vision Model:** Designate a specific multimodal model for image analysis tasks (e.g., `google/gemma-4-26b-a4b-it:free`).
-    *   **Image Model:** Choose a dedicated model for image generation capabilities.
-*   **External Integrations:** 
-    *   **Telegram Key:** Connect your Telegram bot for external messaging capabilities.
-    *   **Sender Email:** Configure an email address for automated sending features.
-
-### API Base URL (Landing Page Settings)
-
-The Landing Page includes a **`// API BASE URL`** field under Settings. This is an optional configuration for pointing the frontend to a different backend server.
-
-By default, the UI talks to the Python FastAPI server running in Docker (which handles the database, LangChain, RAG, etc.). However, if you:
-
-- Host the backend remotely (e.g., on Google Cloud, AWS, or a VPS) but run the frontend locally
-- Want to connect directly to a local Ollama or LM Studio endpoint instead of OpenRouter
-
-...you can paste that custom URL in here. If you're running everything together locally via Docker, **leave it blank** — the app automatically defaults to the server it's being hosted from.
+## Configuration
 
 ### config.py
 
 | Constant | Default | Description |
 |----------|---------|-------------|
-| `LLM_MODEL` | `google/gemma-2-9b-it:free` | OpenRouter model for chat |
 | `EMBEDDING_MODEL` | `all-MiniLM-L6-v2` | Sentence-transformer for FAISS |
 | `IMAGE_MODEL` | `stabilityai/stable-diffusion-xl-beta-v2-2-2` | Image generation model |
 | `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` | OpenRouter API base |
-| `EMAIL_SENDER` | `pythonlusty@gmail.com` | Gmail address for sending |
-| `EMAILS` | Dict of 5 contacts | Quick-access student emails |
-
-### Database Settings (stored in PostgreSQL `user_state` table)
-
-| Key | Description |
-|-----|-------------|
-| `USER_NAME` | Your name (default: "Bayazid") |
-| `LOCATION` | Your location (default: "Rajshahi") |
-| `OPENROUTER_API_KEY` | Your OpenRouter API key |
-| `TELEGRAM_API_KEY` | Telegram bot token (optional) |
-| `EMAIL_PASSWORD` | Gmail app password (optional) |
-| `IMAGE_MODEL` | Override image generation model |
-| `ONBOARDING_COMPLETE` | Set to "true" after first run |
+| `TOTAL_KB_MAX_MB` | `200` | Max total size for books/ |
+| `BOOKS_MAX_MB` | `96` | Max size for books/ sub-limit |
 
 ### Environment Variables (Docker)
 
@@ -325,6 +258,7 @@ By default, the UI talks to the Python FastAPI server running in Docker (which h
 | `PG_DB_NAME` | `postgres` | Database name |
 | `PG_USER` | `postgres` | Database user |
 | `PG_PASSWORD` | `postgres` | Database password |
+| `TZ` | `Asia/Dhaka` | Container timezone |
 
 ---
 
@@ -334,152 +268,92 @@ By default, the UI talks to the Python FastAPI server running in Docker (which h
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `POST` | `/api/chat` | Send a message. Supports `message` (form field) and optional `image` (file upload). Returns streaming `text/plain` response. |
-| `GET` | `/proactive/stream` | SSE endpoint for proactive idle notifications. Returns `text/event-stream`. |
+| `POST` | `/api/chat` | Send message. Form fields: `message`, `theme`, `document`, `page`. Returns streaming response. |
+| `GET` | `/api/chat/history` | Get chat history (last 50 messages). |
+| `POST` | `/api/chat/context` | Save tool context for Marin. JSON: `{tool, result}`. |
 
 ### Settings
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/api/settings` | Get all user settings (name, location, API keys, model). |
-| `POST` | `/api/settings` | Save settings. JSON body: `{user_name, location, openrouter_key, telegram_key, email_pass, image_model}`. |
+| `GET` | `/api/settings` | Get all user settings. |
+| `POST` | `/api/settings` | Save settings. |
 
 ### Documents & Library
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/library` | Serve the document library HTML page. |
-| `GET` | `/api/documents` | List all documents in `doc/`. Returns `{documents: [{filename, size_mb, type}]}`. |
-| `GET` | `/api/documents/{filename}/content` | Read document content. Supports PDF, DOCX, TXT, MD. Returns `{content: "..."}`. |
-| `POST` | `/api/tools/convert` | Convert between DOCX ↔ PDF. Upload file as multipart. Returns `{message, download_url}`. |
+| `GET` | `/library` | Serve library HTML page. |
+| `GET` | `/api/documents` | List all documents in `books/`. |
+| `GET` | `/api/documents/{filename}/content` | Read document content. |
+| `GET` | `/api/documents/{filename}/page/{n}` | Extract text from PDF page n. |
+| `POST` | `/api/documents/upload` | Upload document to `books/`. |
+| `DELETE` | `/api/documents/{filename}` | Delete a document. |
 
-### Flashcards & Study
+### RAG
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/api/flashcards/due` | Get flashcards due for review. Returns `{cards: [{id, topic, front, back}]}`. |
-| `POST` | `/api/flashcards/review` | Review a flashcard. JSON body: `{card_id: int, quality: int}` (quality 0-5). |
-| `GET` | `/api/study/stats` | Get study statistics. Returns `{stats: "..."}`. |
+| `GET` | `/api/rag/health` | RAG server health + storage stats. |
+| `GET` | `/api/rag/index_progress` | Current indexing progress (state, current, total, file). |
 
 ### Tools
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `POST` | `/api/tools/youtube_transcript` | Extract YouTube transcript. JSON body: `{url: "..."}`. |
-| `POST` | `/api/tools/translate` | Translate text. JSON body: `{text: "...", to: "bn"}`. |
-| `POST` | `/api/tools/analyze_link` | Analyze a URL or GitHub repo. JSON body: `{url: "..."}`. |
-
-### Pages
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/` | Root — redirects to `/onboarding` if first run, else serves chat UI. |
-| `GET` | `/onboarding` | Onboarding setup wizard. |
-
----
-
-## Tool Reference
-
-### LangGraph Agent Tools (17)
-
-These tools are orchestrated by the LangGraph pipeline. Marin's "Strategist" agent decides which tools to call before generating her response.
-
-| Tool | Parameters | Description |
-|------|-----------|-------------|
-| `search_web` | `query: str` | DuckDuckGo web search. Returns top 5 results. |
-| `download_pdf` | `url: str` | Downloads PDF to `doc/` and indexes into RAG. |
-| `calculate` | `expression: str` | Safe math evaluator (AST-based). Supports +, -, *, /, **, %, (). |
-| `generate_quiz` | `topic: str` | Generates multiple-choice quiz via OpenRouter. |
-| `start_timer` | `task_name: str` | Starts a named study timer in PostgreSQL. |
-| `end_timer` | `timer_id: int` | Ends a timer by ID, logs duration. |
-| `word_to_pdf` | `path: str` | Converts DOCX to PDF. |
-| `pdf_to_word` | `path: str` | Converts PDF to DOCX. |
-| `translate` | `text: str, to: str` | Translates text to target language (ISO code). |
-| `youtube_transcript` | `url: str` | Fetches YouTube transcript with auto-translation. |
-| `analyze_link` | `url: str` | Clones GitHub repos or scrapes webpages. |
-| `send_email` | `recipient_email: str, subject: str, body: str` | Sends email via Gmail SMTP. |
-| `add_flashcard` | `topic: str, front: str, back: str` | Adds flashcard to SRS system. |
-| `get_due_flashcards` | `topic: str = None` | Gets flashcards due for review. |
-| `review_flashcard` | `card_id: int, quality: int` | Reviews flashcard (0=blackout, 5=perfect). |
-| `start_pomodoro` | `topic: str, duration_minutes: int = 25` | Logs a focus session. |
-| `get_study_stats` | — | Returns total focus time by topic. |
-
-### Standalone Tools
-
-| Module | Key Functions | Dependencies |
-|--------|--------------|-------------|
-| `tools/timer.py` | `run_timer(duration_seconds)` | `arrow`, `pygame` |
-| `tools/alarm.py` | `run_alarm(text)`, `parse_alarm(text)` | `arrow`, `pygame` |
-| `tools/bangla.py` | `BanglaVoiceTranslator().run()` | `speech_recognition`, `pyttsx3`, `deep_translator` |
-| `tools/student_tools.py` | `generate_qr`, `convert_unit`, `calculate`, `programmer_calc` | `qrcode` |
-| `tools/doc_tools.py` | `word_to_pdf`, `pdf_to_word`, `image_to_pdf`, `split_pdf`, `merge_pdfs` | `mammoth`, `pymupdf4llm`, `fpdf2`, `pdf2docx`, `pikepdf` |
-| `tools/web_search.py` | `search_web(query, num_results)` | `requests`, `beautifulsoup4` |
-| `tools/pdf_downloader.py` | `download_pdf(url, filename)` | `requests`, `httpx` |
-| `tools/repo_analyzer.py` | `analyze_link(url)` | `beautifulsoup4`, `git` (CLI) |
-| `tools/youtube_transcript.py` | `get_youtube_transcript(url)` | `youtube-transcript-api` |
-| `tools/email_tool.py` | `send_email_agentic(to, subject, body)` | `smtplib` (stdlib) |
-| `tools/image_tool.py` | `generate_image(prompt)` | `requests` |
-| `tools/quiz_generator.py` | `generate_quiz(topic, num_questions, rag_context)` | `langchain-openai` |
-| `tools/translate.py` | `translate_text(text, dest)` | `deep-translator` |
-| `tools/study_system.py` | `add_flashcard`, `get_due_flashcards`, `review_flashcard`, `start_pomodoro`, `get_study_stats` | `psycopg2` (via `database.py`) |
+| `POST` | `/api/tools/search` | Web search. JSON: `{query, num_results}`. |
+| `POST` | `/api/tools/translate` | Translate. JSON: `{text, to}`. |
+| `POST` | `/api/tools/download_pdf` | Download PDF. JSON: `{url, filename}`. |
+| `POST` | `/api/tools/quiz` | Generate quiz. JSON: `{topic, num_questions}`. |
 
 ---
 
 ## File Structure
 
 ```
-marin-kitagawa/
-├── main.py                 # FastAPI entry point — all HTTP endpoints
-├── marin.py                # Core AI logic — persona, preprocessor, streaming, structured modes
-├── config.py               # Shared constants — model names, emails, app commands
-├── database.py             # PostgreSQL interface — 6 tables, all CRUD functions
-├── classifier.py           # Regex intent/vibe classifier (zero RAM)
-├── proactive_engine.py     # Idle detection, quiet hours, SSE broadcast
-├── rag_server.py           # Standalone FAISS RAG server (:5091)
-├── langgraph_agent.py      # 3-node LangGraph pipeline (strategist → executor → persona)
-├── image.py                # Leo image analyzer (Ollama moondream)
-├── expression.py           # Math expression helpers
-├── run.sh                  # Launcher — starts RAG server + main server
+marin-kitaga wa/
+├── main.py                 # FastAPI entry — all HTTP endpoints
+├── marin.py                # Core AI — persona, preprocessor, streaming
+├── config.py               # Shared constants — model names, paths, limits
+├── database.py             # PostgreSQL interface — 6 tables
+├── classifier.py           # Regex intent/vibe classifier
+├── proactive_engine.py     # Idle detection, SSE broadcast
+├── rag_server.py           # FAISS RAG server (:5091)
+├── langgraph_agent.py      # 3-node LangGraph pipeline
+├── run.sh                  # Launcher — RAG + main server
+├── entrypoint.sh           # Docker entrypoint — fixes permissions
 │
-├── tools/                  # All tool modules
-│   ├── __init__.py         # Package exports
-│   ├── study_system.py     # Flashcards (SuperMemo-2), pomodoro, study stats
-│   ├── quiz_generator.py   # OpenRouter quiz generation
-│   ├── image_tool.py       # OpenRouter image generation
-│   ├── email_tool.py       # Gmail SMTP sender
-│   ├── translate.py        # 15-language translation
-│   ├── student_tools.py    # QR, unit conversion, calculator
-│   ├── doc_tools.py        # PDF/Word conversion (multi-strategy)
+├── tools/                  # Tool modules
 │   ├── web_search.py       # DuckDuckGo search
-│   ├── pdf_downloader.py   # PDF download + RAG auto-index
+│   ├── pdf_downloader.py   # PDF download → books/ + RAG index
 │   ├── repo_analyzer.py    # GitHub repo / webpage analysis
-│   ├── youtube_transcript.py  # YouTube transcript extraction
-│   ├── bangla.py           # Bangla voice translator
-│   ├── timer.py            # CLI countdown timer
-│   └── alarm.py            # CLI alarm
+│   ├── quiz_generator.py   # Quiz generation
+│   ├── translate.py        # Translation (9 languages)
+│   ├── doc_tools.py        # PDF/Word conversion
+│   ├── image_tool.py       # Image generation
+│   ├── email_tool.py       # Gmail SMTP
+│   ├── student_tools.py    # QR, unit conversion, calculator
+│   ├── youtube_transcript.py
+│   └── bangla.py           # Bangla voice translator
 │
-├── templates/              # Jinja2 HTML templates
-│   ├── marin_chat.html     # Main chat UI with sidebar tools
-│   ├── onboarding.html     # First-run setup wizard
-│   └── library.html        # Document library browser
+├── templates/
+│   ├── landing.html        # Landing page
+│   ├── marin_chat.html     # Main chat UI
+│   └── library.html        # Library + PDF viewer + tools
 │
-├── static/                 # Static assets
+├── static/
+│   ├── images/             # Avatars, screenshots
 │   ├── uploads/            # User-uploaded images
 │   └── generated/          # AI-generated images
 │
-├── doc/                    # Documents for RAG indexing
-├── books/                  # Books for RAG (hidden from UI)
-├── code/                   # Source code for RAG
-├── faiss_db/               # FAISS index (auto-created)
-├── games/                  # Legacy game modules (connect4, tiktaktoe, wordgame)
-├── media/                  # Legacy media modules (news, stock)
-├── test/                   # Test files
+├── books/                  # Study materials (PDFs, notes) — RAG indexed
+├── code/                   # Source code — RAG indexed
+├── storage/
+│   └── faiss_db/           # FAISS index files
 │
-├── requirements.txt        # Python dependencies
-├── pyproject.toml          # Project metadata
+├── docker-compose.yml      # App + PostgreSQL
 ├── Dockerfile              # Container build
-├── docker-compose.yml      # App + PostgreSQL orchestration
-├── .gitignore              # Git ignore rules
+├── requirements.txt        # Python dependencies
 └── README.md               # This file
 ```
 
@@ -494,122 +368,39 @@ User types message
        │
        ▼
 ┌──────────────┐
-│ classifier.py │  Regex-based intent + vibe detection
-│ (zero RAM)    │  intent: chat | image_gen | play_* | learn | code | lab
-└──────┬───────┘  vibe: lovely | flirty | angry | sad | excited | playful | neutral
+│ classifier.py │  Regex intent + vibe detection (zero RAM)
+└──────┬───────┘
        │
        ▼
 ┌──────────────┐
-│  Preprocessor │  Enriches the prompt with context
+│  Preprocessor │  Enriches prompt with context
 │  (marin.py)   │
 │  ┌──────────┐ │
-│  │ RAG      │ │  FAISS search → relevant excerpts from doc/books/code
-│  │ YouTube  │ │  If URL detected → fetch transcript
-│  │ Image    │ │  If image uploaded → Leo analysis
+│  │ RAG      │ │  FAISS search → relevant excerpts
+│  │ Page     │ │  If PDF open → current page text
 │  └──────────┘ │
 └──────┬───────┘
        │
        ▼
 ┌──────────────┐
-│  LangGraph    │  3-node agent pipeline
-│  Pipeline     │
-│  ┌──────────┐ │
-│  │Strategist│ │  LLM decides which of 17 tools to call
-│  │    ↓     │ │
-│  │Executor  │ │  Runs tools sequentially, collects results
-│  │    ↓     │ │
-│  │ Persona  │ │  Formats tool outputs into context string
-│  └──────────┘ │
+│  Persona      │  System prompt + vibe modifier + RAG instruction
+│  (Streaming)  │  Last 30 messages from PostgreSQL
 └──────┬───────┘
        │
        ▼
 ┌──────────────┐
 │  Response     │  Streaming LLM generation
-│  Generator    │
-│  ┌──────────┐ │
-│  │ Persona  │ │  System prompt = BASE_CHARACTER + vibe modifier + instructions
-│  │ + History │ │  Last 30 messages from PostgreSQL
-│  │ + Context │ │  RAG excerpts + tool outputs
-│  └──────────┘ │
-└──────┬───────┘
-       │
-       ▼
-┌──────────────┐
-│  Signal       │  Detects special tokens in streamed output
-│  Detection    │
-│  __VIBE__     │  → Saves Marin's emotional state
-│  __STRUCTURED__ → Renders formatted card (Teacher/Coder/Lab)
-│  __GENERATE_IMAGE__ → Triggers image generation
-│  __POMODORO__ → Spawns background task + starts frontend timer
+│  + Cleanup    │  Strips emoji headers + signatures
 └──────────────┘
 ```
 
-### Streaming Protocol
+### Response Cleanup
 
-Marin's response is streamed as plain text with embedded special signals:
+A `clean_response()` function strips any remaining:
+- Emoji protocol headers (e.g. `[HS-04 // FORGE PROTOCOL]`)
+- Signatures (e.g. `— Marin EQ`)
 
-| Signal | Format | Frontend Action |
-|--------|--------|----------------|
-| Vibe | `__VIBE__<vibe>` | Updates Marin's mood indicator |
-| Structured | `__STRUCTURED__<json>` | Renders formatted card (Teacher/Coder/Lab) |
-| Image | `__IMAGE__<url>` | Displays generated image |
-| Pomodoro | `__POMODORO__<topic> : <minutes>` | Starts countdown timer in sidebar |
-
----
-
-## Known Issues & Limitations
-
-### Missing Dependencies
-
-These packages are now listed in `requirements.txt`:
-
-| Package | Used By | Status |
-|---------|---------|--------|
-| `arrow` | `tools/timer.py`, `tools/alarm.py` | **Added** |
-| `pygame` | `tools/timer.py`, `tools/alarm.py` | **Added** |
-| `qrcode` | `tools/student_tools.py` | **Added** |
-| `SpeechRecognition` | `tools/bangla.py` | **Added** |
-| `pyttsx3` | `tools/bangla.py` | **Added** |
-
-### Architecture Issues
-
-| Issue | Detail |
-|-------|--------|
-| ~~FAISS_DIR mismatch~~ | **Fixed** — centralized in `config.py`, both `rag_server.py` and `marin.py` now use shared paths |
-| `image.py` depends on Ollama | Leo analyzer uses local `moondream` model via Ollama — not migrated to OpenRouter |
-| ~~Dead constants~~ | **Fixed** — removed unused `MODEL` and `VOICE_PATH` from `marin.py` |
-| ~~Export name mismatches~~ | **Fixed** — `tools/__init__.py` now exports correct function names (`analyze_link`, `get_youtube_transcript`, `send_email_agentic`) |
-
-### Security Concerns
-
-| Issue | Detail |
-|-------|--------|
-| CORS wide open | `allow_origins=["*"]` — any website can call the API |
-| No authentication | Anyone on the network can chat, change settings, or access the library |
-| No rate limiting | API endpoints can be spammed, triggering unlimited OpenRouter calls |
-| API keys in DB | OpenRouter key stored in plaintext in PostgreSQL `user_state` table |
-| `eval` in games | Legacy `tiktaktoe.py` uses raw `eval()` on AI-generated code (security risk) |
-
-### Missing Features
-
-| Feature | Status |
-|---------|--------|
-| Flashcard review UI | API exists, but no frontend card-flip interaction |
-| Study stats dashboard | API returns raw text, no visual chart |
-| Pomodoro countdown widget | Timer starts, but no visual countdown in sidebar |
-| Quiz card rendering | Quiz generated, but no interactive quiz card in chat |
-| Test suite | No automated tests |
-| `.env` file | DB config hardcoded in `docker-compose.yml` |
-| `ollama` in requirements.txt | Removed from requirements but `image.py` still needs it |
-
-### Performance
-
-| Issue | Detail |
-|-------|--------|
-| RAG server startup | Indexes all files on boot — large `doc/` folders slow down startup |
-| LangGraph pipeline | Adds latency — strategist LLM call + tool execution before every response |
-| Busy-wait timers | `timer.py` and `alarm.py` use `while True: time.sleep(1)` loops |
-| No connection pooling | `database.py` creates a new `psycopg2` connection per function call |
+This runs silently in the background — the character prompt doesn't need to mention these rules.
 
 ---
 

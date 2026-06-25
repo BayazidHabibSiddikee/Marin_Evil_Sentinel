@@ -48,12 +48,12 @@ def _check_url_is_pdf(url: str) -> bool:
 
 def download_pdf(url: str, filename: str = None) -> str:
     """
-    Downloads a PDF from a URL and saves it to the doc/ folder.
+    Downloads a PDF from a URL and saves it to the books/ folder.
     """
     try:
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        doc_dir = os.path.join(base_dir, "doc")
-        os.makedirs(doc_dir, exist_ok=True)
+        books_dir = os.path.join(base_dir, "books")
+        os.makedirs(books_dir, exist_ok=True)
 
         if not filename:
             parsed = urllib.parse.urlparse(url)
@@ -64,7 +64,7 @@ def download_pdf(url: str, filename: str = None) -> str:
         if not filename.lower().endswith(".pdf"):
             filename += ".pdf"
 
-        filepath = os.path.join(doc_dir, filename)
+        filepath = os.path.join(books_dir, filename)
 
         # Get direct URL
         direct_url = _extract_direct_pdf_url(url)
@@ -106,7 +106,7 @@ def download_pdf(url: str, filename: str = None) -> str:
                     size_str = f"{size_kb/1024:.1f} MB"
                 else:
                     size_str = f"{size_kb:.0f} KB"
-                return f"Downloaded '{filename}' ({size_str}) to doc/ {rag_msg}"
+                return f"Downloaded '{filename}' ({size_str}) to books/ {rag_msg}"
 
             except Exception:
                 continue
@@ -123,7 +123,7 @@ def _index_to_rag(filepath: str, filename: str) -> str:
         import httpx
         with open(filepath, "rb") as f:
             r = httpx.post(
-                "http://127.0.0.1:5091/upload/doc",
+                "http://127.0.0.1:5091/upload/book",
                 files={"file": (filename, f, "application/pdf")},
                 timeout=30.0
             )

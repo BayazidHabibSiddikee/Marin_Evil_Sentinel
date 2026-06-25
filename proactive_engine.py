@@ -109,11 +109,20 @@ async def _generate_proactive(agent: str) -> str:
         last = recent_timers[0]
         study_ctx = f"User was last working on: {last['task']}."
 
+    time_hint = ""
+    if idle_mins >= 300:
+        time_hint = "The user has been gone for over 5 hours. They might be outside, at the gym, or doing something else entirely."
+    elif idle_mins >= 120:
+        time_hint = "The user has been gone for over 2 hours. They might be taking a long break or distracted."
+    elif idle_mins >= 20:
+        time_hint = "The user has been gone for a little while (e.g. 20+ mins). They might be scrolling reels, watching videos, or distracted by work."
+
     prompt = f"""You are Marin Kitagawa. The user has been idle for {idle_mins} minutes.
     Recent chat context: {conv_ctx}
     Study context: {study_ctx}
-    Based strictly on the previous messages and what the user was last doing, write a short, proactive message (1-2 sentences) checking in or nagging them to get back to work.
-    Your message MUST directly reference their last known activity, their recent words, or their progress. Do not just send a generic nag. Do not mention you are an AI.
+    Time guess: {time_hint}
+    Based strictly on the previous messages, the time they've been gone, and what the user was last doing, write a short, proactive message (1-2 sentences) checking in or nagging them to get back to work.
+    Your message MUST directly reference their last known activity, their recent words, and make a guess about what they are doing right now (like being at the gym or scrolling reels). Do not just send a generic nag. Do not mention you are an AI.
     """
     try:
         resp = await asyncio.to_thread(llm.invoke, [{"role": "system", "content": prompt}])

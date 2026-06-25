@@ -9,7 +9,6 @@ import requests
 from urllib.parse import urlparse
 
 CACHE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "storage", "cache", "resources"))
-DOC_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "doc"))
 BOOKS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "books"))
 
 
@@ -30,13 +29,12 @@ def _clean_old_caches():
 def resource_download_analyze(url: str) -> str:
     """
     Unified tool: download or analyze any URL.
-    - .pdf → downloads to doc/, indexes into RAG, returns summary
+    - .pdf → downloads to books/, indexes into RAG, returns summary
     - github/gitlab → clones repo, returns README + structure
     - other → fetches webpage content, caches text
     Then returns the content for Marin to analyze.
     """
     os.makedirs(CACHE_DIR, exist_ok=True)
-    os.makedirs(DOC_DIR, exist_ok=True)
     os.makedirs(BOOKS_DIR, exist_ok=True)
     _clean_old_caches()
 
@@ -81,7 +79,7 @@ def _download_pdf(url: str) -> str:
     if not filename.lower().endswith(".pdf"):
         filename = "downloaded_book.pdf"
 
-    filepath = os.path.join(DOC_DIR, filename)
+    filepath = os.path.join(BOOKS_DIR, filename)
     direct_url = _extract_direct_pdf_url(url)
 
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
@@ -109,7 +107,7 @@ def _download_pdf(url: str) -> str:
             try:
                 import httpx
                 with open(filepath, "rb") as f:
-                    rr = httpx.post("http://127.0.0.1:5091/upload/doc",
+                    rr = httpx.post("http://127.0.0.1:5091/upload/book",
                                     files={"file": (filename, f, "application/pdf")}, timeout=30)
                 rag_msg = " | Indexed into RAG" if rr.status_code == 200 else ""
             except:
@@ -117,7 +115,7 @@ def _download_pdf(url: str) -> str:
 
             size_kb = os.path.getsize(filepath) / 1024
             size_str = f"{size_kb/1024:.1f} MB" if size_kb > 1024 else f"{size_kb:.0f} KB"
-            return f"PDF downloaded: {filename} ({size_str}) to doc/{rag_msg}"
+            return f"PDF downloaded: {filename} ({size_str}) to books/{rag_msg}"
 
         except Exception:
             continue

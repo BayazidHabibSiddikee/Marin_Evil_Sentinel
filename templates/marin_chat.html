@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>Marin — HS-02</title>
+    <title>Marin — HS-04</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css">
@@ -92,7 +92,6 @@
             transition: box-shadow .3s;
         }
         .logo-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
-        .logo-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
         .logo-text { display: flex; flex-direction: column; }
         .logo-name {
             font-family: 'DM Serif Display', serif;
@@ -587,6 +586,188 @@
         }
         .btn-primary:hover { background: var(--teal-dim); }
 
+        /* ── SETTINGS TABS ───────────────────────────────────────── */
+        .stab {
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .62rem;
+            letter-spacing: .06em;
+            padding: 6px 12px;
+            cursor: pointer;
+            transition: all .15s;
+        }
+        .stab:hover { color: var(--text-dim); }
+        .stab.active { border-bottom-color: var(--teal); color: var(--teal); }
+        .set-label {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            font-size: .72rem;
+            color: var(--text-dim);
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: .04em;
+        }
+        .set-label input, .set-label select {
+            width: 100%;
+            padding: 7px 10px;
+            background: var(--ink);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text);
+            font-size: .85rem;
+            margin: 0;
+        }
+        .set-label input:focus { outline: none; border-color: var(--teal); }
+        .set-dashed-btn {
+            background: var(--ink);
+            border: 1px dashed var(--border);
+            color: var(--text-muted);
+            padding: 5px 10px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: .7rem;
+            font-family: 'JetBrains Mono', monospace;
+            width: 100%;
+            transition: all .15s;
+        }
+        .set-dashed-btn:hover { border-color: var(--teal); color: var(--teal); }
+
+        /* ── PROVIDER CARD ───────────────────────────────────────── */
+        .provider-card {
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+        .provider-card.enabled { border-color: var(--border-hi); }
+        .provider-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            background: var(--ink2);
+            cursor: pointer;
+            user-select: none;
+        }
+        .provider-header:hover { background: var(--ink3); }
+        .provider-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-muted);
+            flex-shrink: 0;
+        }
+        .provider-dot.on { background: var(--success); }
+        .provider-name {
+            flex: 1;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .72rem;
+            color: var(--text);
+        }
+        .provider-actions { display: flex; gap: 4px; }
+        .provider-actions button {
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            width: 22px;
+            height: 22px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: .65rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+        .provider-actions button:hover { border-color: var(--teal); color: var(--teal); }
+        .provider-actions .btn-del:hover { border-color: var(--danger); color: var(--danger); }
+        .provider-body {
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: var(--ink);
+        }
+        .provider-body.collapsed { display: none; }
+        .provider-field-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .58rem;
+            color: var(--text-muted);
+            letter-spacing: .06em;
+            margin-bottom: 2px;
+        }
+        .provider-body input, .provider-body select {
+            width: 100%;
+            padding: 5px 8px;
+            background: var(--ink2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text);
+            font-size: .78rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .provider-body input:focus { outline: none; border-color: var(--teal); }
+        .provider-keys-list { display: flex; flex-direction: column; gap: 3px; }
+        .provider-models-list {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            max-height: 180px;
+            overflow-y: auto;
+        }
+        .model-cb-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 8px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            background: var(--ink2);
+            cursor: pointer;
+            font-size: .68rem;
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .model-cb-row:hover { border-color: var(--border-hi); }
+        .model-cb-row input[type="checkbox"] { width: 14px; height: 14px; accent-color: var(--teal); cursor: pointer; flex-shrink: 0; }
+        .model-cb-row .m-name { flex: 1; }
+        .model-cb-row .m-ctx { font-size: .58rem; color: var(--text-muted); }
+
+        /* ── DANGER ZONE ─────────────────────────────────────────── */
+        .danger-card {
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .danger-card-title {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .72rem;
+            color: var(--text);
+        }
+        .danger-card-desc {
+            font-size: .68rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+        .btn-danger-sm {
+            align-self: flex-start;
+            background: var(--ink2);
+            border: 1px solid var(--danger);
+            color: var(--danger);
+            padding: 4px 12px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .65rem;
+            transition: all .15s;
+        }
+        .btn-danger-sm:hover { background: var(--danger); color: #000; }
+
         /* ── INPUT AREA ──────────────────────────────────────────── */
         .input-area {
             padding: 16px 20px 20px;
@@ -712,52 +893,98 @@
 
 <!-- SETTINGS MODAL -->
 <div id="settings-modal" class="modal-overlay">
-    <div class="modal-box" style="max-width:500px;max-height:85vh;display:flex;flex-direction:column;">
+    <div class="modal-box" style="max-width:560px;max-height:88vh;display:flex;flex-direction:column;">
         <h3 style="flex-shrink:0;">Settings</h3>
-        <div style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;margin-top:10px;padding-right:4px;">
-            <label style="font-size:.75rem;color:var(--text-dim);font-family:'JetBrains Mono',monospace;">YOUR NAME
-                <input id="set-name" type="text" style="width:100%;padding:7px 10px;background:var(--ink);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:.85rem;margin-top:4px;">
+
+        <!-- Tab bar -->
+        <div id="settings-tabs" style="display:flex;gap:0;flex-shrink:0;margin-bottom:12px;border-bottom:1px solid var(--border);">
+            <button class="stab active" onclick="switchSettingsTab('general')" id="stab-general">General</button>
+            <button class="stab" onclick="switchSettingsTab('providers')" id="stab-providers">Providers</button>
+            <button class="stab" onclick="switchSettingsTab('models')" id="stab-models">Models</button>
+            <button class="stab" onclick="switchSettingsTab('danger')" id="stab-danger" style="margin-left:auto;color:var(--danger);">⚠ Uninstall</button>
+        </div>
+
+        <!-- ─── GENERAL TAB ─── -->
+        <div id="stab-content-general" class="stab-content" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding-right:4px;">
+            <label class="set-label">YOUR NAME
+                <input id="set-name" type="text">
             </label>
-            <label style="font-size:.75rem;color:var(--text-dim);font-family:'JetBrains Mono',monospace;">YOUR AVATAR
+            <label class="set-label">YOUR AVATAR
                 <div style="display:flex;align-items:center;gap:10px;margin-top:4px;">
                     <img id="set-avatar-preview" src="" style="width:36px;height:36px;border-radius:50%;border:1px solid var(--border);object-fit:cover;display:none;" onerror="this.style.display='none'">
                     <input id="set-avatar-file" type="file" accept="image/*" style="display:none" onchange="previewUserAvatar(event)">
-                    <button onclick="document.getElementById('set-avatar-file').click()" style="background:var(--ink);border:1px dashed var(--border);color:var(--text-muted);padding:5px 10px;border-radius:var(--radius-sm);cursor:pointer;font-size:.7rem;font-family:'JetBrains Mono',monospace;">Upload Image</button>
+                    <button onclick="document.getElementById('set-avatar-file').click()" class="set-dashed-btn">Upload Image</button>
                     <button id="set-avatar-clear" onclick="clearUserAvatar()" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:5px 8px;border-radius:var(--radius-sm);cursor:pointer;font-size:.7rem;display:none;">Clear</button>
                 </div>
             </label>
-            <label style="font-size:.75rem;color:var(--text-dim);font-family:'JetBrains Mono',monospace;">LOCATION
-                <input id="set-location" type="text" style="width:100%;padding:7px 10px;background:var(--ink);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:.85rem;margin-top:4px;">
+            <label class="set-label">LOCATION
+                <input id="set-location" type="text">
             </label>
-            <label style="font-size:.75rem;color:var(--text-dim);font-family:'JetBrains Mono',monospace;">OPENROUTER API KEYS
-                <div id="set-keys-list" style="display:flex;flex-direction:column;gap:4px;margin-top:4px;"></div>
-                <button onclick="addKeyField()" style="margin-top:6px;background:var(--ink);border:1px dashed var(--border);color:var(--text-muted);padding:5px 10px;border-radius:var(--radius-sm);cursor:pointer;font-size:.7rem;font-family:'JetBrains Mono',monospace;width:100%;">+ add key</button>
+            <label class="set-label">TELEGRAM KEY
+                <input id="set-telegram" type="password" placeholder="(optional)">
             </label>
-            <div style="font-size:.75rem;color:var(--text-dim);font-family:'JetBrains Mono',monospace;">FREE MODELS (select to enable)
-                <div id="set-models-list" style="margin-top:6px;display:flex;flex-direction:column;gap:3px;"></div>
-            </div>
-            <label style="font-size:.75rem;color:var(--text-dim);font-family:'JetBrains Mono',monospace;">ACTIVE MODEL (used for chat)
-                <select id="set-active-model" style="width:100%;padding:7px 10px;background:var(--ink);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:.85rem;margin-top:4px;"></select>
+            <label class="set-label">SENDER EMAIL
+                <input id="set-email" type="email">
             </label>
-            <label style="font-size:.75rem;color:var(--text-dim);font-family:'JetBrains Mono',monospace;">VISION MODEL (for image analysis)
-                <input id="set-vision-model" type="text" placeholder="google/gemma-4-26b-a4b-it:free" style="width:100%;padding:7px 10px;background:var(--ink);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:.85rem;margin-top:4px;">
+            <label class="set-label">EMAIL PASSWORD
+                <input id="set-email-pass" type="password" placeholder="(app password)">
             </label>
-            <label style="font-size:.75rem;color:var(--text-dim);font-family:'JetBrains Mono',monospace;">IMAGE MODEL (for image generation)
-                <input id="set-image-model" type="text" style="width:100%;padding:7px 10px;background:var(--ink);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:.85rem;margin-top:4px;">
+            <label class="set-label">VISION MODEL
+                <input id="set-vision-model" type="text" placeholder="google/gemma-4-26b-a4b-it:free">
             </label>
-            <label style="font-size:.75rem;color:var(--text-dim);font-family:'JetBrains Mono',monospace;">TELEGRAM KEY
-                <input id="set-telegram" type="password" placeholder="(optional)" style="width:100%;padding:7px 10px;background:var(--ink);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:.85rem;margin-top:4px;">
+            <label class="set-label">IMAGE MODEL
+                <input id="set-image-model" type="text">
             </label>
-            <label style="font-size:.75rem;color:var(--text-dim);font-family:'JetBrains Mono',monospace;">SENDER EMAIL
-                <input id="set-email" type="email" style="width:100%;padding:7px 10px;background:var(--ink);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:.85rem;margin-top:4px;">
-            </label>
-            <label style="font-size:.75rem;color:var(--text-dim);font-family:'JetBrains Mono',monospace;">EMAIL PASSWORD
-                <input id="set-email-pass" type="password" placeholder="(app password)" style="width:100%;padding:7px 10px;background:var(--ink);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:.85rem;margin-top:4px;">
-            </label>
-            <label style="font-size:.75rem;color:var(--text-dim);font-family:'JetBrains Mono',monospace;">HUGGINGFACE TOKEN
-                <input id="set-hf-token" type="password" placeholder="(optional, speeds up RAG)" style="width:100%;padding:7px 10px;background:var(--ink);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:.85rem;margin-top:4px;">
+            <label class="set-label">HUGGINGFACE TOKEN
+                <input id="set-hf-token" type="password" placeholder="(optional, speeds up RAG)">
             </label>
         </div>
+
+        <!-- ─── PROVIDERS TAB ─── -->
+        <div id="stab-content-providers" class="stab-content" style="display:none;flex:1;overflow-y:auto;display:none;flex-direction:column;gap:10px;padding-right:4px;">
+            <div id="providers-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+            <button onclick="addProvider()" class="set-dashed-btn" style="margin-top:4px;">+ Add Provider</button>
+        </div>
+
+        <!-- ─── MODELS TAB ─── -->
+        <div id="stab-content-models" class="stab-content" style="display:none;flex:1;overflow-y:auto;display:none;flex-direction:column;gap:10px;padding-right:4px;">
+            <div style="font-size:.7rem;color:var(--text-muted);font-family:'JetBrains Mono',monospace;margin-bottom:4px;">DEEP MODE FALLBACK CHAIN</div>
+            <div style="font-size:.65rem;color:var(--text-muted);margin-bottom:8px;">When depth is set to "deep", Marin tries these models in order.</div>
+            <div id="deep-models-list" style="display:flex;flex-direction:column;gap:4px;"></div>
+            <button onclick="addDeepModelRow()" class="set-dashed-btn">+ Add Deep Model</button>
+        </div>
+
+        <!-- ─── DANGER TAB ─── -->
+        <div id="stab-content-danger" class="stab-content" style="display:none;flex:1;overflow-y:auto;display:none;flex-direction:column;gap:14px;padding-right:4px;">
+            <div style="font-size:.75rem;color:var(--danger);font-family:'JetBrains Mono',monospace;border:1px solid var(--danger);border-radius:var(--radius-sm);padding:10px;">⚠ These actions are irreversible.</div>
+
+            <div class="danger-card">
+                <div class="danger-card-title">Clear FAISS Index</div>
+                <div class="danger-card-desc">Deletes all RAG vector index files from disk. Library will re-index on next document upload.</div>
+                <button onclick="runUninstall({clear_faiss:true})" class="btn-danger-sm">Clear FAISS Index</button>
+            </div>
+
+            <div class="danger-card">
+                <div class="danger-card-title">Clear HuggingFace Cache</div>
+                <div class="danger-card-desc">Deletes all downloaded model files from ~/.cache/huggingface (embedding models, tokenizers, etc.).</div>
+                <button onclick="runUninstall({clear_hf_cache:true})" class="btn-danger-sm">Clear HF Cache</button>
+            </div>
+
+            <div class="danger-card">
+                <div class="danger-card-title">Reset All Settings</div>
+                <div class="danger-card-desc">Wipes all API keys, providers, model selections, and state from database. Chat history is preserved.</div>
+                <button onclick="runUninstall({clear_all_state:true})" class="btn-danger-sm">Reset Settings</button>
+            </div>
+
+            <div class="danger-card" style="border-color: rgba(201,91,91,.5);">
+                <div class="danger-card-title">Nuke Everything</div>
+                <div class="danger-card-desc">Clears FAISS index + HF cache + all settings in one shot.</div>
+                <button onclick="runUninstall({clear_faiss:true, clear_hf_cache:true, clear_all_state:true})" class="btn-danger-sm" style="background:var(--danger);">Nuke Everything</button>
+            </div>
+
+            <div id="uninstall-result" style="font-size:.7rem;font-family:'JetBrains Mono',monospace;color:var(--success);min-height:20px;"></div>
+        </div>
+
         <div id="settings-msg" style="flex-shrink:0;margin-top:8px;font-size:.75rem;color:var(--teal);"></div>
         <div class="modal-actions" style="flex-shrink:0;margin-top:12px;">
             <button class="btn-ghost" onclick="closeSettings()">cancel</button>
@@ -772,7 +999,7 @@
         <div class="logo-avatar"><img src="/static/images/marin_evil.png" alt="Marin" onerror="this.style.display='none';this.parentNode.textContent='M';"></div>
         <div class="logo-text">
             <span class="logo-name">Marin</span>
-            <span class="logo-sub">HS-02 &middot; ONLINE</span>
+            <span class="logo-sub">HS-04 &middot; ONLINE</span>
         </div>
     </div>
     <div class="topbar-right">
@@ -1036,64 +1263,256 @@
         { id: "liquid/lfm-40b:free", name: "Liquid LFM 40B", ctx: "33K", vision: false },
         { id: "nvidia/nemotron-nano-9b-v2:free", name: "NVIDIA Nemotron Nano 9B", ctx: "131K", vision: false },
         { id: "openrouter/free", name: "OpenRouter Free Router", ctx: "200K", vision: false },
-        { id: "nvidia/llama-nemotron-embed-vl-1b-v2:free", name: "NVIDIA Nemotron Embed VL 1B", ctx: "131K", vision: true },
-        { id: "nvidia/llama-nemotron-rerank-vl-1b-v2:free", name: "NVIDIA Nemotron Rerank VL 1B", ctx: "10K", vision: true },
-        { id: "liquid/lfm2.5-1.2b-thinking:free", name: "Liquid LFM2.5 1.2B Think", ctx: "33K", vision: false },
-        { id: "liquid/lfm2.5-1.2b-instruct:free", name: "Liquid LFM2.5 1.2B Instruct", ctx: "33K", vision: false },
-        { id: "nvidia/nemotron-3.5-content-safety:free", name: "NVIDIA Nemotron Safety 4B", ctx: "128K", vision: false },
         { id: "meta-llama/llama-3.1-8b-instruct:free", name: "Llama 3.1 8B", ctx: "131K", vision: false },
         { id: "google/gemma-2-9b-it:free", name: "Google Gemma 2 9B", ctx: "8K", vision: false },
         { id: "mistralai/mistral-7b-instruct:free", name: "Mistral 7B Instruct", ctx: "33K", vision: false },
-        { id: "nousresearch/hermes-3-llama-3.1-405b:free", name: "Hermes 3 405B", ctx: "131K", vision: false },
     ];
 
-    function renderModelCheckboxes(selectedIds) {
-        const list = document.getElementById('set-models-list');
+    const PROVIDER_PRESETS = {
+        openrouter: { name: "OpenRouter", base_url: "https://openrouter.ai/api/v1", hasPresetModels: true },
+        openai:     { name: "OpenAI", base_url: "https://api.openai.com/v1", hasPresetModels: false },
+        gemini:     { name: "Google Gemini", base_url: "https://generativelanguage.googleapis.com/v1beta/openai/", hasPresetModels: false },
+        ollama:     { name: "Ollama Cloud", base_url: "https://api.ollama.ai/v1", hasPresetModels: false },
+        hf:         { name: "HuggingFace", base_url: "https://api-inference.huggingface.co/v1", hasPresetModels: false },
+        custom:     { name: "Custom", base_url: "", hasPresetModels: false },
+    };
+
+    let _providers = [];  // live state
+    let _deepModels = []; // live state
+
+    // ── Tab switching ──────────────────────────────────────────
+    function switchSettingsTab(tab) {
+        document.querySelectorAll('.stab').forEach(b => b.classList.remove('active'));
+        document.getElementById(`stab-${tab}`).classList.add('active');
+        document.querySelectorAll('.stab-content').forEach(c => {
+            c.style.display = 'none';
+        });
+        const content = document.getElementById(`stab-content-${tab}`);
+        if (content) {
+            content.style.display = 'flex';
+            content.style.flexDirection = 'column';
+        }
+    }
+
+    // ── Provider card builder ─────────────────────────────────
+    function renderProviders() {
+        const list = document.getElementById('providers-list');
         list.innerHTML = '';
-        FREE_MODELS.forEach(m => {
-            const checked = selectedIds.includes(m.id) ? 'checked' : '';
-            const label = document.createElement('label');
-            label.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:var(--radius-sm);cursor:pointer;font-size:.72rem;color:var(--text);font-family:"JetBrains Mono",monospace;transition:background .15s;border:1px solid var(--border);background:var(--ink);';
-            label.onmouseenter = () => label.style.background = 'rgba(77,184,164,.08)';
-            label.onmouseleave = () => label.style.background = 'var(--ink)';
-            label.innerHTML = `
-                <span style="flex:1;">${m.name}</span>
-                <span style="font-size:.6rem;color:var(--text-muted);">${m.ctx}</span>
-                ${m.vision ? '<span style="font-size:.55rem;color:var(--gold);border:1px solid var(--gold-dim);padding:1px 4px;border-radius:3px;">VIS</span>' : ''}
-                <input type="checkbox" class="model-cb" value="${m.id}" ${checked} style="width:16px;height:16px;accent-color:var(--teal);cursor:pointer;">
-            `;
-            list.appendChild(label);
-        });
+        _providers.forEach((p, idx) => renderProviderCard(p, idx, list));
     }
 
-    function updateActiveModelDropdown() {
-        const sel = document.getElementById('set-active-model');
-        const prev = sel.value;
-        sel.innerHTML = '';
-        document.querySelectorAll('.model-cb:checked').forEach(cb => {
-            const opt = document.createElement('option');
-            opt.value = cb.value;
-            opt.textContent = cb.value;
-            sel.appendChild(opt);
-        });
-        if (prev && sel.querySelector(`option[value="${prev}"]`)) sel.value = prev;
+    function renderProviderCard(p, idx, container) {
+        const isOR = p.base_url && p.base_url.includes('openrouter');
+        const card = document.createElement('div');
+        card.className = `provider-card${p.enabled ? ' enabled' : ''}`;
+        card.dataset.idx = idx;
+
+        // Build model checkboxes for OpenRouter presets
+        let modelsHtml = '';
+        if (isOR) {
+            modelsHtml = FREE_MODELS.map(m => {
+                const checked = (p.models || []).includes(m.id) ? 'checked' : '';
+                return `<label class="model-cb-row">
+                    <input type="checkbox" class="prov-model-cb" value="${escapeHtml(m.id)}" ${checked}>
+                    <span class="m-name">${escapeHtml(m.name)}</span>
+                    <span class="m-ctx">${m.ctx}</span>
+                    ${m.vision ? '<span style="font-size:.5rem;color:var(--gold);border:1px solid var(--gold-dim);padding:1px 3px;border-radius:2px;">VIS</span>' : ''}
+                </label>`;
+            }).join('');
+        } else {
+            const customModels = (p.models || []).join('\n');
+            modelsHtml = `<textarea class="prov-custom-models" rows="3" placeholder="One model ID per line\ne.g. gemini-1.5-flash" style="width:100%;padding:5px 8px;background:var(--ink2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:.7rem;resize:vertical;">${escapeHtml(customModels)}</textarea>`;
+        }
+
+        // Build keys list
+        const keysHtml = (p.api_keys || []).map(k => `
+            <div style="display:flex;gap:4px;">
+                <input type="password" class="prov-key-input" value="${escapeHtml(k)}" placeholder="API key..." style="flex:1;">
+                <button onclick="this.parentElement.remove()" style="background:none;border:1px solid var(--border);color:var(--danger);width:26px;height:26px;border-radius:var(--radius-sm);cursor:pointer;font-size:.65rem;flex-shrink:0;">×</button>
+            </div>`).join('');
+
+        card.innerHTML = `
+            <div class="provider-header" onclick="toggleProviderBody(this)">
+                <div class="provider-dot${p.enabled ? ' on' : ''}" onclick="event.stopPropagation();toggleProviderEnabled(${idx})"></div>
+                <span class="provider-name">#${idx+1} ${escapeHtml(p.name || 'Provider')}</span>
+                <div class="provider-actions" onclick="event.stopPropagation()">
+                    <button onclick="moveProvider(${idx},-1)" title="Move up">↑</button>
+                    <button onclick="moveProvider(${idx},1)" title="Move down">↓</button>
+                    <button class="btn-del" onclick="removeProvider(${idx})" title="Delete">🗑</button>
+                </div>
+            </div>
+            <div class="provider-body collapsed">
+                <div>
+                    <div class="provider-field-label">PRESET</div>
+                    <select class="prov-preset" onchange="applyProviderPreset(this, ${idx})" style="margin-bottom:4px;">
+                        ${Object.entries(PROVIDER_PRESETS).map(([k,v]) => `<option value="${k}">${v.name}</option>`).join('')}
+                    </select>
+                </div>
+                <div>
+                    <div class="provider-field-label">BASE URL</div>
+                    <input type="text" class="prov-base-url" value="${escapeHtml(p.base_url || '')}" placeholder="https://...">
+                </div>
+                <div>
+                    <div class="provider-field-label">NAME</div>
+                    <input type="text" class="prov-name" value="${escapeHtml(p.name || '')}" placeholder="My Provider">
+                </div>
+                <div>
+                    <div class="provider-field-label">API KEYS</div>
+                    <div class="provider-keys-list">${keysHtml}</div>
+                    <button onclick="addProviderKey(this)" class="set-dashed-btn" style="margin-top:4px;">+ add key</button>
+                </div>
+                <div>
+                    <div class="provider-field-label">MODELS</div>
+                    <div class="provider-models-list">${modelsHtml}</div>
+                </div>
+            </div>`;
+
+        container.appendChild(card);
     }
 
-    function addKeyField(value = '') {
-        const list = document.getElementById('set-keys-list');
+    function toggleProviderBody(header) {
+        const body = header.nextElementSibling;
+        body.classList.toggle('collapsed');
+    }
+
+    function toggleProviderEnabled(idx) {
+        _providers[idx].enabled = !_providers[idx].enabled;
+        renderProviders();
+    }
+
+    function moveProvider(idx, dir) {
+        const newIdx = idx + dir;
+        if (newIdx < 0 || newIdx >= _providers.length) return;
+        [_providers[idx], _providers[newIdx]] = [_providers[newIdx], _providers[idx]];
+        _providers.forEach((p, i) => p.priority = i + 1);
+        renderProviders();
+    }
+
+    function removeProvider(idx) {
+        _providers.splice(idx, 1);
+        _providers.forEach((p, i) => p.priority = i + 1);
+        renderProviders();
+    }
+
+    function addProviderKey(btn) {
+        const keysList = btn.previousElementSibling;
         const row = document.createElement('div');
         row.style.cssText = 'display:flex;gap:4px;';
         row.innerHTML = `
-            <input type="password" class="key-input" value="${escapeHtml(value)}" placeholder="sk-or-..." style="flex:1;padding:6px 8px;background:var(--ink);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:.8rem;">
-            <button onclick="this.parentElement.remove()" style="background:transparent;border:1px solid var(--border);color:var(--danger);padding:4px 8px;border-radius:var(--radius-sm);cursor:pointer;font-size:.7rem;">x</button>
-        `;
+            <input type="password" class="prov-key-input" placeholder="API key..." style="flex:1;">
+            <button onclick="this.parentElement.remove()" style="background:none;border:1px solid var(--border);color:var(--danger);width:26px;height:26px;border-radius:var(--radius-sm);cursor:pointer;font-size:.65rem;flex-shrink:0;">×</button>`;
+        keysList.appendChild(row);
+    }
+
+    function applyProviderPreset(select, idx) {
+        const preset = PROVIDER_PRESETS[select.value];
+        if (!preset) return;
+        const card = select.closest('.provider-card');
+        card.querySelector('.prov-base-url').value = preset.base_url;
+        card.querySelector('.prov-name').value = preset.name;
+    }
+
+    function addProvider() {
+        _providers.push({
+            name: 'OpenRouter',
+            base_url: 'https://openrouter.ai/api/v1',
+            api_keys: [],
+            models: [],
+            enabled: true,
+            priority: _providers.length + 1,
+        });
+        renderProviders();
+        // Expand the new card
+        setTimeout(() => {
+            const cards = document.querySelectorAll('.provider-card');
+            if (cards.length) {
+                const last = cards[cards.length - 1];
+                last.querySelector('.provider-body').classList.remove('collapsed');
+            }
+        }, 50);
+    }
+
+    // ── Deep models list ───────────────────────────────────────
+    function renderDeepModels() {
+        const list = document.getElementById('deep-models-list');
+        list.innerHTML = '';
+        _deepModels.forEach((m, i) => {
+            const row = document.createElement('div');
+            row.style.cssText = 'display:flex;gap:4px;align-items:center;';
+            row.innerHTML = `
+                <span style="font-family:'JetBrains Mono',monospace;font-size:.6rem;color:var(--text-muted);min-width:24px;">${i+1}.</span>
+                <input type="text" value="${escapeHtml(m)}" placeholder="model/id:free" style="flex:1;padding:5px 8px;background:var(--ink);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:.75rem;font-family:'JetBrains Mono',monospace;">
+                <button onclick="this.parentElement.remove()" style="background:none;border:1px solid var(--border);color:var(--danger);width:24px;height:24px;border-radius:var(--radius-sm);cursor:pointer;font-size:.6rem;flex-shrink:0;">×</button>`;
+            list.appendChild(row);
+        });
+    }
+
+    function addDeepModelRow() {
+        const list = document.getElementById('deep-models-list');
+        const i = list.children.length;
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;gap:4px;align-items:center;';
+        row.innerHTML = `
+            <span style="font-family:'JetBrains Mono',monospace;font-size:.6rem;color:var(--text-muted);min-width:24px;">${i+1}.</span>
+            <input type="text" placeholder="model/id:free" style="flex:1;padding:5px 8px;background:var(--ink);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:.75rem;font-family:'JetBrains Mono',monospace;">
+            <button onclick="this.parentElement.remove()" style="background:none;border:1px solid var(--border);color:var(--danger);width:24px;height:24px;border-radius:var(--radius-sm);cursor:pointer;font-size:.6rem;flex-shrink:0;">×</button>`;
         list.appendChild(row);
     }
 
+    // ── Collect provider state from DOM ────────────────────────
+    function collectProvidersFromDOM() {
+        return Array.from(document.querySelectorAll('.provider-card')).map((card, idx) => {
+            const keys = Array.from(card.querySelectorAll('.prov-key-input')).map(i => i.value.trim()).filter(Boolean);
+            const isOR = (card.querySelector('.prov-base-url')?.value || '').includes('openrouter');
+            let models;
+            if (isOR) {
+                models = Array.from(card.querySelectorAll('.prov-model-cb:checked')).map(cb => cb.value);
+            } else {
+                const ta = card.querySelector('.prov-custom-models');
+                models = ta ? ta.value.split('\n').map(s => s.trim()).filter(Boolean) : [];
+            }
+            return {
+                name: card.querySelector('.prov-name')?.value?.trim() || 'Provider',
+                base_url: card.querySelector('.prov-base-url')?.value?.trim() || '',
+                api_keys: keys,
+                models,
+                enabled: _providers[idx]?.enabled ?? true,
+                priority: idx + 1,
+            };
+        });
+    }
+
+    function collectDeepModelsFromDOM() {
+        return Array.from(document.querySelectorAll('#deep-models-list input[type="text"]'))
+            .map(i => i.value.trim()).filter(Boolean);
+    }
+
+    // ── Uninstall ──────────────────────────────────────────────
+    async function runUninstall(flags) {
+        const resultEl = document.getElementById('uninstall-result');
+        resultEl.textContent = 'Working...';
+        resultEl.style.color = 'var(--text-muted)';
+        try {
+            const res = await fetch('/api/settings/uninstall', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(flags)
+            });
+            const data = await res.json();
+            const parts = Object.entries(data.results || {}).map(([k, v]) => `${k}: ${v}`);
+            resultEl.textContent = parts.length ? parts.join(' | ') : 'Done.';
+            resultEl.style.color = 'var(--success)';
+        } catch (e) {
+            resultEl.textContent = 'Failed: ' + e.message;
+            resultEl.style.color = 'var(--danger)';
+        }
+    }
+
+    // ── Open / Close / Save ────────────────────────────────────
     async function openSettings() {
         document.getElementById('settings-modal').classList.add('open');
         document.getElementById('settings-msg').textContent = '';
-        document.getElementById('set-keys-list').innerHTML = '';
+        switchSettingsTab('general');
         try {
             const res = await fetch('/api/settings');
             const data = await res.json();
@@ -1110,20 +1529,19 @@
             document.getElementById('set-email').value = data.sender_email || '';
             document.getElementById('set-email-pass').value = data.email_pass || '';
             document.getElementById('set-hf-token').value = data.hf_token || '';
-            const selected = data.selected_models || data.fallback_models || [];
-            renderModelCheckboxes(selected);
-            updateActiveModelDropdown();
-            if (data.active_model) document.getElementById('set-active-model').value = data.active_model;
-            const keys = (data.openrouter_key || '').split(',').map(k => k.trim()).filter(Boolean);
-            if (keys.length === 0) addKeyField();
-            else keys.forEach(k => addKeyField(k));
-            document.querySelectorAll('.model-cb').forEach(cb => {
-                cb.addEventListener('change', updateActiveModelDropdown);
-            });
+
+            // Providers
+            _providers = Array.isArray(data.providers) && data.providers.length > 0
+                ? data.providers
+                : [{ name: 'OpenRouter', base_url: 'https://openrouter.ai/api/v1', api_keys: [], models: [], enabled: true, priority: 1 }];
+            renderProviders();
+
+            // Deep models
+            _deepModels = Array.isArray(data.deep_models) ? data.deep_models : [];
+            renderDeepModels();
         } catch (e) {
             document.getElementById('settings-msg').textContent = 'Error loading settings.';
             document.getElementById('settings-msg').style.color = 'var(--danger)';
-            addKeyField();
         }
     }
 
@@ -1133,22 +1551,17 @@
 
     async function saveSettings() {
         const msg = document.getElementById('settings-msg');
-        const keyInputs = document.querySelectorAll('.key-input');
-        const keys = Array.from(keyInputs).map(i => i.value.trim()).filter(Boolean).join(',');
-        const selectedModels = Array.from(document.querySelectorAll('.model-cb:checked')).map(cb => cb.value);
         const body = {
             user_name: document.getElementById('set-name').value,
             location: document.getElementById('set-location').value,
-            openrouter_key: keys,
             image_model: document.getElementById('set-image-model').value,
             vision_model: document.getElementById('set-vision-model').value,
-            selected_models: selectedModels,
-            fallback_models: selectedModels,
-            active_model: document.getElementById('set-active-model').value,
             telegram_key: document.getElementById('set-telegram').value,
             sender_email: document.getElementById('set-email').value,
             email_pass: document.getElementById('set-email-pass').value,
-            hf_token: document.getElementById('set-hf-token').value
+            hf_token: document.getElementById('set-hf-token').value,
+            providers: collectProvidersFromDOM(),
+            deep_models: collectDeepModelsFromDOM(),
         };
 
         if (_pendingAvatar) {
@@ -1183,6 +1596,11 @@
             msg.style.color = 'var(--danger)';
         }
     }
+
+    // ── Kept for backward compat (no longer used in modal) ────
+    function addKeyField(value = '') {}
+    function renderModelCheckboxes(selectedIds) {}
+    function updateActiveModelDropdown() {}
 
     // ── Flashcards ─────────────────────────────────────────────────
 
@@ -1816,22 +2234,28 @@
     function applyTheme() {
         const theme = localStorage.getItem('marinTheme') || 'evil';
         const themeBtn = document.getElementById('theme-btn');
+        const logoName = document.querySelector('.logo-name');
+        const logoSub = document.querySelector('.logo-sub');
         if (theme === 'standard') {
             document.documentElement.setAttribute('data-theme', 'standard');
             if (themeBtn) themeBtn.textContent = 'Evil Mode';
+            if (logoName) logoName.textContent = 'Marin';
+            if (logoSub) logoSub.textContent = 'HS-04 \u00b7 ONLINE';
+            document.title = 'Marin \u2014 HS-04';
             document.querySelectorAll('img').forEach(img => {
                 if (img.src.includes('marin_evil.png')) img.src = '/static/images/marin.png';
             });
             marinAvatar = '/static/images/marin.png';
-            if (typeof marinAvatar !== 'undefined') marinAvatar = '/static/images/marin.png';
         } else {
             document.documentElement.removeAttribute('data-theme');
             if (themeBtn) themeBtn.textContent = 'Sweet Mode';
+            if (logoName) logoName.textContent = 'Marin';
+            if (logoSub) logoSub.textContent = 'HS-04 \u00b7 ONLINE';
+            document.title = 'Marin \u2014 HS-04';
             document.querySelectorAll('img').forEach(img => {
                 if (img.src.includes('marin.png') && !img.src.includes('marin_evil.png')) img.src = '/static/images/marin_evil.png';
             });
             marinAvatar = '/static/images/marin_evil.png';
-            if (typeof marinAvatar !== 'undefined') marinAvatar = '/static/images/marin_evil.png';
         }
     }
     function toggleTheme() {

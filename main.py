@@ -120,6 +120,7 @@ async def onboarding_page(request: Request):
 
 @app.get("/api/settings")
 async def get_settings():
+    import llm_manager
     return {
         "user_name": database.get_state("USER_NAME") or "Bayazid",
         "location": database.get_state("LOCATION") or "Rajshahi",
@@ -133,7 +134,10 @@ async def get_settings():
         "fallback_models": database.get_state("FALLBACK_MODELS") or [],
         "active_model": database.get_state("ACTIVE_MODEL") or "",
         "user_avatar": database.get_state("USER_AVATAR") or "",
-        "hf_token": database.get_state("HF_TOKEN") or ""
+        "hf_token": database.get_state("HF_TOKEN") or "",
+        # ── Multi-provider fields ──
+        "providers": llm_manager.get_providers(),
+        "deep_models": llm_manager.get_deep_models(),
     }
 
 @app.post("/api/settings/avatar")
@@ -154,6 +158,7 @@ async def upload_avatar(avatar: UploadFile = File(...)):
 
 @app.post("/api/settings")
 async def save_settings(request: Request):
+    import llm_manager
     data = await request.json()
     database.set_state("USER_NAME", data.get("user_name", "Bayazid"))
     database.set_state("LOCATION", data.get("location", "Rajshahi"))
@@ -168,9 +173,63 @@ async def save_settings(request: Request):
     if data.get("active_model") is not None: database.set_state("ACTIVE_MODEL", data.get("active_model"))
     if "user_avatar" in data: database.set_state("USER_AVATAR", data.get("user_avatar", ""))
     if data.get("hf_token") is not None: database.set_state("HF_TOKEN", data.get("hf_token", ""))
-    
+    # ── Multi-provider fields ──
+    if data.get("providers") is not None:
+        llm_manager.save_providers(data["providers"])
+    if data.get("deep_models") is not None:
+        llm_manager.save_deep_models(data["deep_models"])
+
     database.set_state("ONBOARDING_COMPLETE", "true")
     return {"status": "success"}
+
+@app.post("/api/settings/uninstall")
+async def uninstall(request: Request):
+    """
+    Clears downloaded data. Flags in body:
+      clear_faiss: bool  — deletes FAISS index files from disk
+      clear_hf_cache: bool — deletes HuggingFace model cache (~/.cache/huggingface)
+      clear_all_state: bool — wipes all user_state DB keys (keeps chat history)
+    """
+    data = await request.json()
+    results = {}
+
+    if data.get("clear_faiss"):
+        from config import FAISS_DIR
+        import shutil
+        try:
+            if os.path.exists(FAISS_DIR):
+                shutil.rmtree(FAISS_DIR)
+                os.makedirs(FAISS_DIR, exist_ok=True)
+            results["faiss"] = "cleared"
+        except Exception as e:
+            results["faiss"] = f"error: {e}"
+
+    if data.get("clear_hf_cache"):
+        hf_cache = os.path.expanduser("~/.cache/huggingface")
+        import shutil
+        try:
+            if os.path.exists(hf_cache):
+                shutil.rmtree(hf_cache)
+            results["hf_cache"] = "cleared"
+        except Exception as e:
+            results["hf_cache"] = f"error: {e}"
+
+    if data.get("clear_all_state"):
+        try:
+            state_keys = [
+                "OPENROUTER_API_KEY", "PROVIDERS", "DEEP_MODELS", "ACTIVE_MODEL",
+                "SELECTED_MODELS", "FALLBACK_MODELS", "RATE_LIMITS",
+                "IMAGE_MODEL", "VISION_MODEL", "HF_TOKEN",
+                "TELEGRAM_API_KEY", "SENDER_EMAIL", "EMAIL_PASSWORD",
+                "PROACTIVE_STREAK", "PROACTIVE_LAST_FIRE", "PROACTIVE_LAST_USER_MSG",
+            ]
+            for k in state_keys:
+                database.set_state(k, "")
+            results["state"] = "cleared"
+        except Exception as e:
+            results["state"] = f"error: {e}"
+
+    return {"status": "ok", "results": results}
 # ── LIBRARY API ─────────────────────────────────────────────────────────────
 @app.get("/library", response_class=HTMLResponse)
 async def library_page(request: Request):
@@ -187,17 +246,28 @@ async def rag_health_proxy():
     except Exception as e:
         return {"status": "unavailable", "error": str(e)}
 
+@app.get("/api/rag/index_progress")
+async def rag_index_progress_proxy():
+    """Proxy to the RAG server's /index_progress for UI status polling."""
+    import httpx
+    try:
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            r = await client.get("http://127.0.0.1:5091/index_progress")
+            return r.json()
+    except Exception:
+        return {"state": "idle", "current": 0, "total": 0, "file": ""}
+
 @app.get("/api/documents")
 async def list_documents():
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    doc_dir = os.path.join(base_dir, "books")
-    if not os.path.exists(doc_dir):
+    books_dir = os.path.join(base_dir, "books")
+    if not os.path.exists(books_dir):
         return {"documents": []}
 
     docs = []
-    for f in sorted(os.listdir(doc_dir)):
+    for f in sorted(os.listdir(books_dir)):
         if f.endswith((".pdf", ".docx", ".txt", ".md")):
-            path = os.path.join(doc_dir, f)
+            path = os.path.join(books_dir, f)
             size_bytes = os.path.getsize(path)
             if size_bytes >= 1024 * 1024:
                 size_str = f"{size_bytes / (1024 * 1024):.1f} MB"
@@ -215,10 +285,10 @@ async def list_documents():
 @app.get("/api/documents/{filename}/content")
 async def get_document_content(filename: str):
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    doc_dir = os.path.join(base_dir, "books")
-    path = os.path.realpath(os.path.join(doc_dir, filename))
+    books_dir = os.path.join(base_dir, "books")
+    path = os.path.realpath(os.path.join(books_dir, filename))
 
-    if not path.startswith(os.path.realpath(doc_dir)) or not os.path.exists(path):
+    if not path.startswith(os.path.realpath(books_dir)) or not os.path.exists(path):
         return {"error": "File not found"}
 
     ext = filename.split(".")[-1].lower()
@@ -247,13 +317,54 @@ async def get_document_content(filename: str):
     except Exception as e:
         return {"error": str(e)}
 
+@app.get("/api/documents/{filename}/page/{page_num}")
+async def get_document_page(filename: str, page_num: int):
+    """Extract text from a single PDF page (1-indexed). Used by library chat for page-aware context."""
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    books_dir = os.path.join(base_dir, "books")
+    path = os.path.realpath(os.path.join(books_dir, filename))
+
+    if not path.startswith(os.path.realpath(books_dir)) or not os.path.exists(path):
+        return {"error": "File not found"}
+
+    ext = filename.split(".")[-1].lower()
+    if ext != "pdf":
+        return {"error": "Page extraction only supported for PDF files"}
+
+    try:
+        import fitz
+        # BUG 6 fix: use context manager so doc.close() is guaranteed on any exception
+        with fitz.open(path) as doc:
+            total = doc.page_count
+
+            if page_num < 1 or page_num > total:
+                return {"error": f"Page {page_num} out of range (1-{total})", "total_pages": total}
+
+            text = doc[page_num - 1].get_text()  # fitz uses 0-indexed
+
+        if not text.strip():
+            return {
+                "page": page_num,
+                "total_pages": total,
+                "content": "",
+                "warning": "This page appears to be a scanned image with no extractable text."
+            }
+
+        return {
+            "page": page_num,
+            "total_pages": total,
+            "content": text
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
 @app.delete("/api/documents/{filename}")
 async def delete_document(filename: str):
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    doc_dir = os.path.join(base_dir, "books")
-    path = os.path.realpath(os.path.join(doc_dir, filename))
+    books_dir = os.path.join(base_dir, "books")
+    path = os.path.realpath(os.path.join(books_dir, filename))
 
-    if not path.startswith(os.path.realpath(doc_dir)) or not os.path.exists(path):
+    if not path.startswith(os.path.realpath(books_dir)) or not os.path.exists(path):
         return {"error": "File not found"}
 
     os.remove(path)
@@ -273,11 +384,22 @@ async def upload_document(file: UploadFile = File(...)):
         return {"error": f"Knowledge-base full. Total: {current_total_mb:.1f} MB / {TOTAL_KB_MAX_MB} MB (only {remaining:.1f} MB left). Delete some documents or books first."}
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    doc_dir = os.path.join(base_dir, "books")
-    os.makedirs(doc_dir, exist_ok=True)
-    filepath = os.path.join(doc_dir, file.filename)
+    books_dir = os.path.join(base_dir, "books")
+    os.makedirs(books_dir, exist_ok=True)
+    filepath = os.path.join(books_dir, file.filename)
     with open(filepath, "wb") as f:
         f.write(content)
+
+    # Trigger RAG re-indexing in background
+    import asyncio
+    async def _trigger_reindex():
+        import httpx
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                await client.post("http://127.0.0.1:5091/reindex")
+        except Exception:
+            pass
+    asyncio.create_task(_trigger_reindex())
 
     return {"success": True, "filename": file.filename, "size": f"{upload_size_mb:.1f}MB"}
 
@@ -329,6 +451,8 @@ async def chat_endpoint(request: Request):
     form = await request.form()
     message = form.get("message", "")
     theme = form.get("theme", "evil")
+    document_name = form.get("document", "")
+    page_num = int(form.get("page", "0") or "0")
     
     # Handle image upload if present
     image_path = None
@@ -339,6 +463,25 @@ async def chat_endpoint(request: Request):
         with open(image_path, "wb") as buffer:
             shutil.copyfileobj(img_file.file, buffer)
 
+    # Fetch page text for page-aware context (only when viewing a specific page)
+    page_text = ""
+    if document_name and page_num > 0:
+        try:
+            import fitz
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            books_dir = os.path.realpath(os.path.join(base_dir, "books"))
+            # BUG 1 fix: path traversal protection — same check as /api/documents/{filename}/page/{n}
+            doc_path = os.path.realpath(os.path.join(books_dir, document_name))
+            if (doc_path.startswith(books_dir + os.sep) or doc_path == books_dir) \
+                    and os.path.exists(doc_path) \
+                    and document_name.lower().endswith('.pdf'):
+                # BUG 6 fix: context manager guarantees doc.close() on any exception
+                with fitz.open(doc_path) as doc:
+                    if 1 <= page_num <= doc.page_count:
+                        page_text = doc[page_num - 1].get_text()
+        except Exception:
+            pass
+
     try:
         import proactive_engine
         proactive_engine.record_user_message("marin")
@@ -346,10 +489,20 @@ async def chat_endpoint(request: Request):
     except ImportError:
         pass
 
+    tool_context = form.get("tool_context", "")
+
     from marin import main as marin_main
     
     async def stream_generator():
-        async for chunk in marin_main(message, image_path=image_path, theme=theme):
+        async for chunk in marin_main(
+            message,
+            image_path=image_path,
+            theme=theme,
+            document=document_name,
+            page_num=page_num,
+            page_text=page_text,
+            precalculated_tool_context=tool_context
+        ):
             yield chunk
             
     return StreamingResponse(stream_generator(), media_type="text/plain")
