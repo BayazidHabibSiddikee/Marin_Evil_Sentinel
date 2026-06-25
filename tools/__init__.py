@@ -48,7 +48,4 @@ try:
 except ImportError:
     pass
 
-try:
-    from .study_system import add_flashcard, get_due_flashcards, review_flashcard, start_pomodoro, get_study_stats
-except ImportError:
-    pass
+

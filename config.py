@@ -7,7 +7,7 @@ BOOKS_DIR = os.path.join(BASE_DIR, "books")
 CODE_DIR  = os.path.join(BASE_DIR, "code")
 
 EMBEDDING_MODEL    = "all-MiniLM-L6-v2"
-IMAGE_MODEL        = "stabilityai/stable-diffusion-xl-beta-v2-2-2"
+IMAGE_MODEL        = "black-forest-labs/flux-schnell"
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
 # ── Knowledge-base storage limits ──────────────────────────────────────────────

@@ -84,37 +84,7 @@ def send_email(recipient_email: str, subject: str, body: str) -> str:
     from tools.email_tool import send_email_agentic
     return send_email_agentic(recipient_email, subject, body)
 
-@tool
-def add_flashcard(topic: str, front: str, back: str) -> str:
-    """Add a flashcard to the spaced repetition system."""
-    from tools.study_system import add_flashcard as _af
-    return _af(topic, front, back)
-
-@tool
-def get_due_flashcards(topic: str = None) -> str:
-    """Get flashcards due for review. Optionally filter by topic."""
-    from tools.study_system import get_due_flashcards as _gdf
-    return _gdf(topic)
-
-@tool
-def review_flashcard(card_id: int, quality: int) -> str:
-    """Review a flashcard. Quality is 0-5 (0=blackout, 5=perfect)."""
-    from tools.study_system import review_flashcard as _rf
-    return _rf(card_id, quality)
-
-@tool
-def start_pomodoro(topic: str, duration_minutes: int = 25) -> str:
-    """Start a pomodoro focus session."""
-    from tools.study_system import start_pomodoro as _sp
-    return _sp(topic, duration_minutes)
-
-@tool
-def get_study_stats() -> str:
-    """Get statistics of completed study sessions."""
-    from tools.study_system import get_study_stats as _gss
-    return _gss()
-
-ALL_TOOLS = [search_web, download_pdf, calculate, generate_quiz, start_timer, end_timer, word_to_pdf, pdf_to_word, translate, youtube_transcript, analyze_link, send_email, add_flashcard, get_due_flashcards, review_flashcard, start_pomodoro, get_study_stats]
+ALL_TOOLS = [search_web, download_pdf, calculate, generate_quiz, start_timer, end_timer, word_to_pdf, pdf_to_word, translate, youtube_transcript, analyze_link, send_email]
 tools_by_name = {t.name: t for t in ALL_TOOLS}
 
 # ── Agent State ──────────────────────────────────────────────────────────────
@@ -134,6 +104,17 @@ If no tool needed: [{{"action": "respond", "args": {{}}, "rationale": "..."}}]
 """
 
 async def node_strategist(state: AgentState) -> dict:
+    # Skip strategist for known follow-up requests that already have tool results
+    if any("[TOOL RESULTS" in str(m.content) for m in state.get("messages", [])):
+        print(f"[Strategist] Tool result already present, passthrough only")
+        return {"plan": [{"action": "respond", "args": {}, "rationale": "Tool result already present — using it directly."}]}
+    
+    # Skip strategist for quiz follow-ups (detected by looking for context in tool_output)
+    if "tool_outputs" in state and any("quiz" in str(v).lower() for v in state["tool_outputs"].values()):
+        print(f"[Strategist] Quiz result already present, passthrough only")
+        return {"plan": [{"action": "respond", "args": {}, "rationale": "Quiz result already present — responding to user review."}]}
+    
+    # Continue with normal strategist behavior
     last = state["messages"][-1]
     user_msg = last.content if hasattr(last, 'content') else last.get("content", str(last))
     

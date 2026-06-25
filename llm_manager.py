@@ -6,14 +6,14 @@ from langchain_openai import ChatOpenAI
 FALLBACK_MODELS = [
     "google/gemma-4-31b-it:free",
     "google/gemma-4-26b-a4b-it:free",
-    "google/gemma-2-9b-it:free",
-    "nvidia/nemotron-nano-9b-v2:free",
-    "liquid/lfm-40b:free",
-    "meta-llama/llama-3.3-70b-instruct:free",
-    "qwen/qwen-2.5-72b-instruct:free",
     "qwen/qwen3-coder:free",
-    "venice/uncensored:free",
-    "nousresearch/hermes-3-llama-3.1-405b:free"
+    "qwen/qwen-2.5-72b-instruct:free",
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "qwen/qwen3-next-80b-a3b-instruct:free",
+    "liquid/lfm-40b:free",
+    "nousresearch/hermes-3-llama-3.1-405b:free",
+    "nvidia/nemotron-nano-9b-v2:free",
+    "google/gemma-2-9b-it:free",
 ]
 
 COOLDOWN_SECONDS = 5 * 3600  # 5 hours
@@ -110,11 +110,14 @@ def get_deep_models() -> list:
                 return models
         except Exception:
             pass
-    # Default deep models
+    # Default deep models — moderate speed, good quality
     return [
+        "google/gemma-4-26b-a4b-it:free",
+        "qwen/qwen-2.5-72b-instruct:free",
         "qwen/qwen3-coder-480b-a35b:free",
         "nousresearch/hermes-3-llama-3.1-405b:free",
         "meta-llama/llama-3.3-70b-instruct:free",
+        "liquid/lfm-40b:free",
     ]
 
 def save_deep_models(models: list):

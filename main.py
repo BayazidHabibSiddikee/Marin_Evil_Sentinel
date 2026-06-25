@@ -128,7 +128,7 @@ async def get_settings():
         "telegram_key": database.get_state("TELEGRAM_API_KEY") or "",
         "sender_email": database.get_state("SENDER_EMAIL") or "pythonlusty@gmail.com",
         "email_pass": database.get_state("EMAIL_PASSWORD") or "",
-        "image_model": database.get_state("IMAGE_MODEL") or "stabilityai/stable-diffusion-xl-beta-v2-2-2",
+        "image_model": database.get_state("IMAGE_MODEL") or "black-forest-labs/flux-schnell",
         "vision_model": database.get_state("VISION_MODEL") or "",
         "selected_models": database.get_state("SELECTED_MODELS") or [],
         "fallback_models": database.get_state("FALLBACK_MODELS") or [],
@@ -166,7 +166,7 @@ async def save_settings(request: Request):
     if data.get("telegram_key"): database.set_state("TELEGRAM_API_KEY", data.get("telegram_key"))
     if data.get("sender_email"): database.set_state("SENDER_EMAIL", data.get("sender_email"))
     if data.get("email_pass"): database.set_state("EMAIL_PASSWORD", data.get("email_pass"))
-    if data.get("image_model"): database.set_state("IMAGE_MODEL", data.get("image_model"))
+    if data.get("image_model") is not None: database.set_state("IMAGE_MODEL", data.get("image_model"))
     if data.get("vision_model") is not None: database.set_state("VISION_MODEL", data.get("vision_model"))
     if data.get("selected_models") is not None: database.set_state("SELECTED_MODELS", data.get("selected_models"))
     if data.get("fallback_models") is not None: database.set_state("FALLBACK_MODELS", data.get("fallback_models"))
@@ -436,7 +436,7 @@ async def save_tool_context(request: Request):
         tool_name = data.get("tool", "tool")
         result = data.get("result", "")
         if result:
-            database.save_message("marin", "system", f"[TOOL: {tool_name}] {result[:2000]}")
+            database.save_message("marin", "system", f"[TOOL RESULTS — {tool_name}] {result[:2000]}")
             return {"ok": True}
         return {"ok": False, "error": "No result"}
     except Exception as e:
@@ -546,52 +546,6 @@ body {{ font-family: 'Inter', -apple-system, sans-serif; background: #0d1117; co
 </body>
 </html>"""
     return {"html": html, "title": req.title, "description": req.description}
-
-# ── FLASHCARDS & STUDY API ────────────────────────────────────────────────────
-class AddFlashcardRequest(BaseModel):
-    topic: str
-    front: str
-    back: str
-
-@app.post("/api/flashcards/add")
-async def add_flashcard_endpoint(req: AddFlashcardRequest):
-    try:
-        from tools.study_system import add_flashcard
-        result = add_flashcard(req.topic, req.front, req.back)
-        return {"message": result}
-    except Exception as e:
-        return {"error": str(e)}
-
-@app.get("/api/flashcards/due")
-async def get_due_cards():
-    try:
-        from tools.study_system import get_due_flashcards
-        cards = get_due_flashcards()
-        return {"cards": cards}
-    except Exception as e:
-        return {"error": str(e)}
-
-class ReviewRequest(BaseModel):
-    card_id: int
-    quality: int
-
-@app.post("/api/flashcards/review")
-async def review_card(req: ReviewRequest):
-    try:
-        from tools.study_system import review_flashcard
-        result = review_flashcard(req.card_id, req.quality)
-        return {"message": result}
-    except Exception as e:
-        return {"error": str(e)}
-
-@app.get("/api/study/stats")
-async def get_study_stats_endpoint():
-    try:
-        from tools.study_system import get_study_stats
-        return {"stats": get_study_stats()}
-    except Exception as e:
-        return {"error": str(e)}
-
 
 # ── EXPLICIT TOOL ENDPOINTS ───────────────────────────────────────────────────
 

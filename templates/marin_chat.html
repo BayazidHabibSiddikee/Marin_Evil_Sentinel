@@ -472,66 +472,6 @@
         }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* ── FLASHCARD ───────────────────────────────────────────── */
-        .flashcard-modal {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,.6);
-            z-index: 2000;
-            align-items: center;
-            justify-content: center;
-        }
-        .flashcard-modal.open { display: flex; }
-        .flashcard-box {
-            background: var(--ink2);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            padding: 24px;
-            max-width: 500px;
-            width: 90%;
-            max-height: 80vh;
-            overflow-y: auto;
-        }
-        .flashcard-box h3 { color: var(--teal); font-family: 'DM Serif Display', serif; margin-bottom: 12px; }
-        .flashcard-item {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-sm);
-            padding: 12px;
-            margin-bottom: 10px;
-        }
-        .flashcard-item .front { color: var(--text); font-weight: 500; margin-bottom: 8px; }
-        .flashcard-item .back { color: var(--text-dim); font-size: .85rem; display: none; }
-        .flashcard-item .back.show { display: block; }
-        .flashcard-actions { display: flex; gap: 8px; margin-top: 8px; }
-        .flashcard-actions button {
-            padding: 4px 10px;
-            border-radius: var(--radius-sm);
-            border: 1px solid var(--border);
-            background: var(--ink3);
-            color: var(--text-dim);
-            cursor: pointer;
-            font-size: .7rem;
-            font-family: 'JetBrains Mono', monospace;
-            transition: all .2s;
-        }
-        .flashcard-actions button:hover { border-color: var(--teal); color: var(--teal); }
-        .flashcard-actions button.easy { border-color: var(--success); color: var(--success); }
-        .flashcard-actions button.hard { border-color: var(--danger); color: var(--danger); }
-        .flashcard-close {
-            background: transparent;
-            border: 1px solid var(--border);
-            color: var(--text-dim);
-            padding: 6px 16px;
-            border-radius: var(--radius-sm);
-            cursor: pointer;
-            margin-top: 12px;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: .7rem;
-        }
-        .flashcard-close:hover { border-color: var(--danger); color: var(--danger); }
-
         /* ── TIMER DIALOG ────────────────────────────────────────── */
         .modal-overlay {
             display: none;
@@ -871,12 +811,7 @@
 <body>
 
 <!-- FLASHCARD MODAL -->
-<div id="flashcard-modal" class="flashcard-modal">
-    <div class="flashcard-box">
-        <h3>Flashcard Review</h3>
-        <div id="flashcard-list"></div>
-        <button class="flashcard-close" onclick="closeFlashcards()">close</button>
-    </div>
+
 </div>
 
 <!-- TIMER DIALOG -->
@@ -933,7 +868,7 @@
                 <input id="set-vision-model" type="text" placeholder="google/gemma-4-26b-a4b-it:free">
             </label>
             <label class="set-label">IMAGE MODEL
-                <input id="set-image-model" type="text">
+                <input id="set-image-model" type="text" placeholder="black-forest-labs/flux-schnell">
             </label>
             <label class="set-label">HUGGINGFACE TOKEN
                 <input id="set-hf-token" type="password" placeholder="(optional, speeds up RAG)">
@@ -1019,10 +954,6 @@
         <div class="sidebar-section">Navigate</div>
         <a href="/" class="sidebar-btn active" style="text-decoration:none"><span class="icon">&#8962;</span> Home</a>
         <a href="/library" class="sidebar-btn" style="text-decoration:none"><span class="icon">&#9783;</span> Library</a>
-
-        <div class="sidebar-section">Quick Actions</div>
-        <button class="sidebar-btn" onclick="openFlashcards()"><span class="icon">&#9830;</span> Review Cards</button>
-        <button class="sidebar-btn" onclick="fetchStats()"><span class="icon">&#9783;</span> Study Stats</button>
 
         <div class="sidebar-section">Tools</div>
         <div style="padding: 4px 16px;">
@@ -1331,6 +1262,15 @@
                 <button onclick="this.parentElement.remove()" style="background:none;border:1px solid var(--border);color:var(--danger);width:26px;height:26px;border-radius:var(--radius-sm);cursor:pointer;font-size:.65rem;flex-shrink:0;">×</button>
             </div>`).join('');
 
+        // Auto-select matching preset based on base_url
+        let matchedPreset = 'custom';
+        for (const [k, v] of Object.entries(PROVIDER_PRESETS)) {
+            if (p.base_url && v.base_url && p.base_url.includes(v.base_url)) {
+                matchedPreset = k;
+                break;
+            }
+        }
+
         card.innerHTML = `
             <div class="provider-header" onclick="toggleProviderBody(this)">
                 <div class="provider-dot${p.enabled ? ' on' : ''}" onclick="event.stopPropagation();toggleProviderEnabled(${idx})"></div>
@@ -1345,7 +1285,7 @@
                 <div>
                     <div class="provider-field-label">PRESET</div>
                     <select class="prov-preset" onchange="applyProviderPreset(this, ${idx})" style="margin-bottom:4px;">
-                        ${Object.entries(PROVIDER_PRESETS).map(([k,v]) => `<option value="${k}">${v.name}</option>`).join('')}
+                        ${Object.entries(PROVIDER_PRESETS).map(([k,v]) => `<option value="${k}"${k === matchedPreset ? ' selected' : ''}>${v.name}</option>`).join('')}
                     </select>
                 </div>
                 <div>
@@ -1627,58 +1567,7 @@
         document.getElementById('set-avatar-file').value = '';
         document.getElementById('set-avatar-preview').src = '';
     }
-    async function openFlashcards() {
-        const modal = document.getElementById('flashcard-modal');
-        const list = document.getElementById('flashcard-list');
-        list.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem;">Loading...</p>';
-        modal.classList.add('open');
 
-        try {
-            const res = await fetch('/api/flashcards/due');
-            const data = await res.json();
-            if (data.error || !data.cards || data.cards.length === 0) {
-                list.innerHTML = `<p style="color:var(--text-muted);font-size:.85rem;">${data.error || 'No cards due for review.'}</p>`;
-                return;
-            }
-            list.innerHTML = '';
-            data.cards.forEach(card => {
-                const item = document.createElement('div');
-                item.className = 'flashcard-item';
-                item.innerHTML = `
-                    <div class="front">${escapeHtml(card.front)}</div>
-                    <div class="back" id="back-${card.id}">${escapeHtml(card.back)}</div>
-                    <div class="flashcard-actions">
-                        <button onclick="document.getElementById('back-${card.id}').classList.toggle('show')">flip</button>
-                        <button class="easy" onclick="reviewCard(${card.id}, 5)">easy</button>
-                        <button onclick="reviewCard(${card.id}, 3)">ok</button>
-                        <button class="hard" onclick="reviewCard(${card.id}, 1)">hard</button>
-                    </div>
-                `;
-                list.appendChild(item);
-            });
-        } catch (e) {
-            list.innerHTML = '<p style="color:var(--danger);font-size:.85rem;">Error loading flashcards.</p>';
-        }
-    }
-
-    function closeFlashcards() {
-        document.getElementById('flashcard-modal').classList.remove('open');
-    }
-
-    async function reviewCard(cardId, quality) {
-        try {
-            await fetch('/api/flashcards/review', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ card_id: cardId, quality: quality })
-            });
-            const item = document.querySelector(`#back-${cardId}`)?.closest('.flashcard-item');
-            if (item) {
-                item.style.opacity = '.4';
-                item.style.pointerEvents = 'none';
-            }
-        } catch (e) {}
-    }
 
     // ── Doc converter ──────────────────────────────────────────────
     async function convertDoc(e) {
@@ -1826,8 +1715,10 @@
                     addMessage('ai', data.quiz);
                 }
                 const rawQuizData = typeof data.raw_quiz !== 'undefined' ? data.raw_quiz : data.quiz;
-                await saveToolContext('quiz', `Generated Quiz for ${topic}: ${JSON.stringify(rawQuizData)}`);
-                input.value = `I generated a quiz on the topic "${topic}". Can you provide a quick study review based on the quiz contents?`;
+                const quizToolResult = `Generated Quiz for ${topic}: ${JSON.stringify(rawQuizData)}`;
+                await saveToolContext('quiz', quizToolResult);
+                window._toolContextPersisted = quizToolResult;
+                input.value = `I generated a quiz on the topic \"${topic}\". Can you provide a quick study review based on the quiz contents?`;
                 await sendMessage();
                 document.getElementById('quiz-topic').value = '';
             }
@@ -1864,27 +1755,7 @@
     }
 
     // ── Study stats ────────────────────────────────────────────────
-    async function fetchStats() {
-        try {
-            const res = await fetch('/api/study/stats');
-            const data = await res.json();
-            if (data.stats) {
-                const s = data.stats;
-                const html = `<div class="card">
-                    <h3>Study Stats</h3>
-                    <p><strong>Total sessions:</strong> ${s.total_sessions || 0}</p>
-                    <p><strong>Total time:</strong> ${s.total_minutes || 0}m</p>
-                    <p><strong>Cards reviewed:</strong> ${s.cards_reviewed || 0}</p>
-                    <p><strong>Streak:</strong> ${s.streak || 0} days</p>
-                </div>`;
-                addMessage('ai', html);
-            } else {
-                addMessage('ai', 'No study data yet.');
-            }
-        } catch (e) {
-            addMessage('ai', '<span style="color:var(--danger)">Error fetching stats.</span>');
-        }
-    }
+
 
     // ── Send action (sidebar shortcuts) ────────────────────────────
     async function sendAction(text) {
@@ -2041,6 +1912,16 @@
             if (savedReply) {
                 const rpRole = savedReply.role === 'ai' ? 'Marin' : 'You';
                 msgToSend = `[Replying to ${rpRole}: "${savedReply.text.substring(0, 120)}"] ${text}`;
+            }
+            // Add tool_context if present in the global state (stored by the sidebar tool execution)
+            if (window._pendingToolContext) {
+                formData.append('tool_context', window._pendingToolContext);
+                delete window._pendingToolContext;
+            }
+            // Also forward any saved tool_context from the previous tool execution (used for quiz, download, etc.)
+            if (window._toolContextPersisted) {
+                formData.append('tool_context', window._toolContextPersisted);
+                delete window._toolContextPersisted;
             }
             formData.append('message', msgToSend);
             formData.append('theme', localStorage.getItem('marinTheme') || 'evil');

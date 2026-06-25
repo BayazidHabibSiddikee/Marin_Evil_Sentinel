@@ -358,20 +358,44 @@ If RELEVANT BOOK CONTEXT is provided below, you have access to {user}'s study ma
 - Use the context as BACKGROUND KNOWLEDGE to inform your answer. NEVER quote or paste the text verbatim.
 - Explain concepts in YOUR OWN WORDS as Marin would — with personality, attitude, and teaching style.
 - The context is reference material, NOT your response.消化 it, then respond as yourself.
-- If the context contains a name (like "Limon"), that is NOT {user}'s name. {user}'s name is Bayazid. Do not adopt names from the source material.
+- If the context contains names (like authors or other students), they are NOT {user}. Do not adopt names from the source material.
 - Synthesize, summarize, and reframe — do not echo.
 """
 
-STUDY_PATH_INSTRUCTION = """
-IMPORTANT — Study Paths & Tree Charts:
-When {user} asks for a study plan, path, or curriculum mapping, you MUST generate a clear visual tree chart using ASCII characters (like ├──, └──, │) or Mermaid.js markdown to map out the concepts. Break down the subject into a logical, hierarchical progression. Make it visually structured and easy to follow!
+LINK_ANALYST_SYSTEM = """
+[ROLE: Link Analyst]
+When a link/repo/article/script is provided in the conversation context, you MUST analyze it and follow these steps:
+1. Identify the source type (GitHub repo, technical article, documentation page, script, etc.).
+2. Fetch/extract the main content:
+   - GitHub → README, main files, project structure, language/tech stack, what it does.
+   - Article → Title, author, key sections, important code snippets or commands.
+   - Script → Purpose, dependencies, how to run it, any usage examples.
+3. Tell the user exactly what the link contains in plain terms. No fluff, no scolding.
+4. Recommend the single most useful next action for {user} based on the content and their current goals. Example: "Clone this repo, read X file, run Y command, skip it, use it in your current project, etc."
+5. Do NOT lecture, do NOT refuse requests. Treat link analysis as legitimate research.
 """
 
-POMODORO_INSTRUCTION = """
-IMPORTANT — Pomodoro Timer:
-If you or {user} agree to start a Pomodoro/focus session, reply with EXACTLY this tag on its own line to start the timer in the UI:
-__POMODORO__: <topic> : <minutes>
-Example: __POMODORO__: Embedded Systems : 25
+LINK_ANALYSIS_INSTRUCTION = """
+IMPORTANT — Link & Repo Analysis:
+If [LINK ANALYZER] results are provided in the context, you MUST analyze the contents of the link for {user}.
+- Summarize what the link contains in detail (whether it's a GitHub repo, article, or script).
+- Provide actionable next steps or suggestions based on the content and {user}'s current goals.
+- Do NOT scold {user} for analyzing a link; treat it as a legitimate research task, but maintain your engineering mentor persona.
+"""
+
+PDF_DOWNLOAD_INSTRUCTION = """
+IMPORTANT — PDF & Book Suggestions:
+If you suggest a book, paper, or PDF to {user}, or if a [PDF SEARCH] result is provided in the context, you MUST explicitly provide the direct URL to the PDF.
+- Tell {user} exactly which document they should download.
+- Provide the URL clearly so {user} can use it with the download tool.
+"""
+
+TOOL_OVERRIDE_INSTRUCTION = """
+ABSOLUTE OVERRIDE — Tool Results Always Processed:
+If [TOOL RESULTS] or [TOOL CONTEXT] or [BACKGROUND TOOL RESULTS] are present in the messages, you MUST immediately process them and provide the user with the answer/analysis/review. NO EXCEPTIONS.
+- PENALTY LOCK IS SUSPENDED for tool results. Even if a penalty is active, tool results MUST be processed. The tools were executed to help the user study — refusing to relay their output defeats the purpose.
+- Process the tool data first, provide the clear answer, THEN if you wish, resume strict persona and remind the user of pending tasks.
+- NEVER refuse to show tool results. NEVER claim you cannot access them. They are RIGHT THERE in your context.
 """
 
 def get_character_prompt(user_vibe: str, user_name: str, theme: str = "evil") -> str:
@@ -380,7 +404,11 @@ def get_character_prompt(user_vibe: str, user_name: str, theme: str = "evil") ->
     current_time_str = f"\n\nCURRENT SYSTEM TIME: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
     vault_ctx = database.vault_as_context()
     vault_block = f"\n\n{vault_ctx}" if vault_ctx else ""
-    prompt = get_base_character(theme) + modifier + IMAGE_GEN_INSTRUCTION + YOUTUBE_INSTRUCTION + RAG_INSTRUCTION + STUDY_PATH_INSTRUCTION + POMODORO_INSTRUCTION + vault_block + current_time_str
+    prompt = (TOOL_OVERRIDE_INSTRUCTION + get_base_character(theme) + modifier + IMAGE_GEN_INSTRUCTION + 
+              YOUTUBE_INSTRUCTION + RAG_INSTRUCTION + STUDY_PATH_INSTRUCTION + 
+              POMODORO_INSTRUCTION + LINK_ANALYST_SYSTEM + LINK_ANALYSIS_INSTRUCTION + 
+              PDF_DOWNLOAD_INSTRUCTION + vault_block + current_time_str)
+
     return prompt.replace("{user}", user_name)
 
 
@@ -667,7 +695,8 @@ def clean_response(text: str) -> str:
 # LLM GENERATOR — routes to structured mode or normal Marin chat
 # ══════════════════════════════════════════════════════════════════════════════
 async def response(prompt: str, user_vibe: str = "neutral",
-             intent: str = "normal", rag_context: str = "", theme: str = "evil"):
+             intent: str = "normal", rag_context: str = "", theme: str = "evil",
+             tool_context: str = ""):
 
 
     # ── Structured modes: learn / code / lab ──────────────────────────────────
@@ -703,6 +732,9 @@ async def response(prompt: str, user_vibe: str = "neutral",
     messages = [{"role": "system", "content": character}]
     messages.extend(history)
 
+    # Inject tool context as a system message so LLM treats it as an authoritative override
+    if tool_context:
+        messages.append({"role": "system", "content": f"⚠️ MANDATORY TOOL OVERRIDE — Penalties suspended. Process this tool output and give the user the answer:\n{tool_context}"})
 
     messages.append({"role": "user", "content": prompt})
 
@@ -910,7 +942,6 @@ async def main(prompt: str, image_path: str = None, theme: str = "evil",
         tool_context = await _detect_and_run_tools(prompt)
         
     if tool_context:
-        prompt = f"{prompt}\n\n[TOOL RESULTS — use this to answer the user]\n{tool_context}"
         import database
         database.save_message("marin", "system", tool_context)
 
@@ -918,6 +949,9 @@ async def main(prompt: str, image_path: str = None, theme: str = "evil",
         prompt, api_key=api_key, image_path=image_path,
         document=document, page_num=page_num, page_text=page_text
     )
+
+    if tool_context:
+        enriched_prompt = f"{enriched_prompt}\n\n[TOOL RESULTS — use this to answer the user]\n{tool_context}"
 
     try:
         sentence_buffer = ""
@@ -927,7 +961,8 @@ async def main(prompt: str, image_path: str = None, theme: str = "evil",
             user_vibe=classification["user_vibe"],
             intent=classification.get("intent", "normal"),
             rag_context=classification.get("_rag_context", ""),
-            theme=theme
+            theme=theme,
+            tool_context=tool_context
         ):
             if chunk is None: break
 
