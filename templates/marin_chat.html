@@ -810,9 +810,7 @@
 </head>
 <body>
 
-<!-- FLASHCARD MODAL -->
 
-</div>
 
 <!-- TIMER DIALOG -->
 <div id="timer-dialog" class="modal-overlay">
@@ -1325,6 +1323,21 @@
             const urlInput = card.querySelector('.prov-base-url');
             if (nameInput) _providers[idx].name = nameInput.value.trim() || _providers[idx].name;
             if (urlInput) _providers[idx].base_url = urlInput.value.trim() || _providers[idx].base_url;
+            
+            // Sync API keys
+            const keys = Array.from(card.querySelectorAll('.prov-key-input')).map(i => i.value.trim()).filter(Boolean);
+            _providers[idx].api_keys = keys;
+            
+            // Sync Models
+            const isOR = (urlInput && urlInput.value.includes('openrouter')) || (_providers[idx].base_url.includes('openrouter'));
+            if (isOR) {
+                _providers[idx].models = Array.from(card.querySelectorAll('.prov-model-cb:checked')).map(cb => cb.value);
+            } else {
+                const ta = card.querySelector('.prov-custom-models');
+                if (ta) {
+                    _providers[idx].models = ta.value.split('\n').map(s => s.trim()).filter(Boolean);
+                }
+            }
         });
     }
 
@@ -1377,6 +1390,7 @@
     }
 
     function addProvider() {
+        syncProvidersFromDOM();
         _providers.push({
             name: 'OpenRouter',
             base_url: 'https://openrouter.ai/api/v1',
@@ -1630,10 +1644,8 @@
             if (data.error) {
                 document.getElementById('yt-result').innerText = data.error;
             } else {
-                document.getElementById('yt-result').innerText = 'Done! Transcript sent to chat.';
-                await saveToolContext('youtube_transcript', `Transcript from ${url}: ${data.transcript || ''}`);
-                input.value = `I just extracted the transcript for ${url}. Can you analyze it and give me a summary?`;
-                await sendMessage();
+                document.getElementById('yt-result').innerText = 'Done!';
+                await saveToolContext('youtube_transcript', `Transcript from ${url}:\n\n${data.transcript || ''}`);
                 document.getElementById('yt-url').value = '';
             }
         } catch (err) {
@@ -1656,10 +1668,8 @@
             if (data.error) {
                 document.getElementById('search-result').innerText = data.error;
             } else {
-                document.getElementById('search-result').innerText = 'Done! Results sent to chat.';
-                await saveToolContext('search', data.results);
-                input.value = `I searched the web for "${query}". Can you analyze these results?`;
-                await sendMessage();
+                document.getElementById('search-result').innerText = 'Done!';
+                await saveToolContext('search', `Web Search for "${query}":\n\n${data.results}`);
                 document.getElementById('search-query').value = '';
             }
         } catch (err) {
@@ -1683,9 +1693,7 @@
                 document.getElementById('pdf-result').innerText = data.error;
             } else {
                 document.getElementById('pdf-result').innerText = 'Done!';
-                await saveToolContext('download_pdf', data.message);
-                input.value = `I just downloaded a PDF from ${url} to my library. What should I do next?`;
-                await sendMessage();
+                await saveToolContext('download_pdf', `Downloaded PDF from ${url}\n\n${data.message}`);
                 document.getElementById('pdf-url').value = '';
             }
         } catch (err) {
@@ -1734,16 +1742,14 @@
             if (data.error) {
                 document.getElementById('quiz-result').innerText = data.error;
             } else {
-                document.getElementById('quiz-result').innerText = 'Quiz sent to chat!';
+                document.getElementById('quiz-result').innerText = 'Done!';
                 if (data.format === 'html') {
                     addMessage('ai', data.quiz);
                 }
                 const rawQuizData = typeof data.raw_quiz !== 'undefined' ? data.raw_quiz : data.quiz;
-                const quizToolResult = `Generated Quiz for ${topic}: ${JSON.stringify(rawQuizData)}`;
+                const quizToolResult = `Generated Quiz for ${topic}:\n\n${JSON.stringify(rawQuizData)}`;
                 await saveToolContext('quiz', quizToolResult);
                 window._toolContextPersisted = quizToolResult;
-                input.value = `I generated a quiz on the topic \"${topic}\". Can you provide a quick study review based on the quiz contents?`;
-                await sendMessage();
                 document.getElementById('quiz-topic').value = '';
             }
         } catch (err) {
@@ -1768,9 +1774,7 @@
                 document.getElementById('translate-result').innerText = data.error;
             } else {
                 document.getElementById('translate-result').innerText = 'Done!';
-                await saveToolContext('translate', `Translated to ${lang}: ${data.message}`);
-                input.value = `I translated "${text}" to ${lang}. The result is: ${data.message}.`;
-                await sendMessage();
+                await saveToolContext('translate', `Translated "${text}" to ${lang}:\n\n${data.message}`);
                 document.getElementById('translate-text').value = '';
             }
         } catch (err) {
@@ -2085,12 +2089,12 @@
                     const role = msg.role === 'assistant' ? 'ai' : 'user';
                     let content = msg.content || '';
                     if (content.includes('__VIBE__')) content = content.replace(/__VIBE__\w+/g, '').trim();
+                    let pgData = null;
                     if (content.includes('__PLAYGROUND__')) {
                         try {
                             const pgPart = content.split('__PLAYGROUND__')[1].split('\n')[0].trim();
-                            const pgData = JSON.parse(pgPart);
+                            pgData = JSON.parse(pgPart);
                             content = content.split('__PLAYGROUND__')[0];
-                            setTimeout(() => renderPlayground(pgData, null), 100);
                         } catch {}
                     }
                     if (content.includes('__STRUCTURED__')) {
@@ -2105,8 +2109,11 @@
                         } catch {}
                     }
                     if (content.includes('__IMAGE__')) content = content.replace(/__IMAGE__\S*/g, '').trim();
-                    if (!content.trim()) return;
-                    addMessage(role, renderMarkdown(content));
+                    if (!content.trim() && !pgData) return;
+                    const msgNode = addMessage(role, renderMarkdown(content));
+                    if (pgData && msgNode) {
+                        setTimeout(() => renderPlayground(pgData, msgNode.querySelector('.content') || msgNode), 100);
+                    }
                 });
             }
         } catch (e) {

@@ -38,10 +38,8 @@ except ImportError:
 # ── Config ────────────────────────────────────────────────────────────────────
 from config import BASE_DIR, BOOKS_DIR, FAISS_DIR
 VIBE_FILE = os.path.join(BASE_DIR, "vibe_state.json")
-IMAGE_DIR = os.path.join(os.getcwd(), "static", "uploads")
-GEN_DIR   = os.path.join(os.getcwd(), "static", "generated")
+from text_extractor import extract_text_from_file
 
-os.makedirs(GEN_DIR,    exist_ok=True)
 os.makedirs(BOOKS_DIR,  exist_ok=True)
 os.makedirs(FAISS_DIR, exist_ok=True)
 
@@ -406,8 +404,7 @@ def get_character_prompt(user_vibe: str, user_name: str, theme: str = "evil") ->
     vault_ctx = database.vault_as_context()
     vault_block = f"\n\n{vault_ctx}" if vault_ctx else ""
     prompt = (TOOL_OVERRIDE_INSTRUCTION + get_base_character(theme) + modifier + IMAGE_GEN_INSTRUCTION + 
-              YOUTUBE_INSTRUCTION + RAG_INSTRUCTION + STUDY_PATH_INSTRUCTION + 
-              POMODORO_INSTRUCTION + LINK_ANALYST_SYSTEM + LINK_ANALYSIS_INSTRUCTION + 
+              YOUTUBE_INSTRUCTION + RAG_INSTRUCTION + LINK_ANALYST_SYSTEM + LINK_ANALYSIS_INSTRUCTION + 
               PDF_DOWNLOAD_INSTRUCTION + vault_block + current_time_str)
 
     return prompt.replace("{user}", user_name)
@@ -952,7 +949,7 @@ async def main(prompt: str, image_path: str = None, theme: str = "evil",
     )
 
     if tool_context:
-        enriched_prompt = f"{enriched_prompt}\n\n[TOOL RESULTS — use this to answer the user]\n{tool_context}"
+        pass # The tool_context is injected into the system prompt message directly, so we don't append it here to avoid duplication.
 
     try:
         sentence_buffer = ""

@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import database
 import config
 
-GEN_DIR = os.path.join(os.getcwd(), "static", "generated")
+GEN_DIR = os.path.join(config.BASE_DIR, "static", "generated")
 
 IMAGE_CAPABLE_MODELS = [
     "black-forest-labs/flux-schnell",

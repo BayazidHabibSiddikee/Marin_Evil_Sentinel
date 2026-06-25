@@ -287,7 +287,7 @@ def get_timer_stats():
 def set_state(key: str, value: Any):
     with get_connection() as conn:
         cursor = conn.cursor()
-        val_str = json.dumps(value) if not isinstance(value, str) else value
+        val_str = json.dumps(value)
         cursor.execute(
             "INSERT INTO user_state (key, value, updated_at) VALUES (%s, %s, CURRENT_TIMESTAMP) "
             "ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP",
@@ -304,7 +304,7 @@ def get_state(key: str, default: Any = None) -> Any:
         return default
     try:
         return json.loads(row["value"])
-    except:
+    except Exception:
         return row["value"]
 
 # ── Penalties API ────────────────────────────────────────────────────────────

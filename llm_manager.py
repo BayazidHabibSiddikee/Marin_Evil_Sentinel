@@ -55,7 +55,7 @@ def get_providers() -> list:
     If no PROVIDERS key, falls back to legacy OPENROUTER_API_KEY.
     """
     raw = database.get_state("PROVIDERS")
-    if raw and raw != "[]":
+    if raw is not None:
         try:
             providers = json.loads(raw) if isinstance(raw, str) else raw
             if isinstance(providers, list) and providers:
@@ -68,7 +68,9 @@ def get_providers() -> list:
     legacy_keys = [k.strip() for k in legacy_key.split(",") if k.strip()] if legacy_key else []
 
     active_model = database.get_state("ACTIVE_MODEL", "")
-    custom_models_raw = database.get_state("SELECTED_MODELS") or database.get_state("FALLBACK_MODELS")
+    custom_models_raw = database.get_state("SELECTED_MODELS")
+    if custom_models_raw is None:
+        custom_models_raw = database.get_state("FALLBACK_MODELS")
     legacy_models = custom_models_raw if isinstance(custom_models_raw, list) else FALLBACK_MODELS
 
     providers = []

@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 import database
-from config import get_books_size_mb, get_kb_size_mb, TOTAL_KB_MAX_MB
+from config import get_kb_size_mb, TOTAL_KB_MAX_MB
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
@@ -151,11 +151,11 @@ async def upload_avatar(avatar: UploadFile = File(...)):
     content = await avatar.read()
     if len(content) > 2 * 1024 * 1024:
         return {"error": "Image too large (max 2MB)"}
-    avatar_path = os.path.join("static", "images", "user_avatar.png")
+    avatar_path = os.path.join("static", "images", f"user_avatar{ext}")
     os.makedirs(os.path.dirname(avatar_path), exist_ok=True)
     with open(avatar_path, "wb") as f:
         f.write(content)
-    url = f"/static/images/user_avatar.png?t={int(time.time())}"
+    url = f"/static/images/user_avatar{ext}?t={int(time.time())}"
     database.set_state("USER_AVATAR", url)
     return {"url": url}
 
@@ -389,7 +389,8 @@ async def upload_document(file: UploadFile = File(...)):
     base_dir = os.path.dirname(os.path.abspath(__file__))
     books_dir = os.path.join(base_dir, "books")
     os.makedirs(books_dir, exist_ok=True)
-    filepath = os.path.join(books_dir, file.filename)
+    safe_filename = os.path.basename(file.filename.replace('\\', '/'))
+    filepath = os.path.join(books_dir, safe_filename)
     with open(filepath, "wb") as f:
         f.write(content)
 
@@ -455,13 +456,17 @@ async def chat_endpoint(request: Request):
     message = form.get("message", "")
     theme = form.get("theme", "evil")
     document_name = form.get("document", "")
-    page_num = int(form.get("page", "0") or "0")
+    try:
+        page_num = int(form.get("page", "0") or "0")
+    except ValueError:
+        page_num = 0
     
     # Handle image upload if present
     image_path = None
     if "image" in form and getattr(form["image"], "filename", None):
         img_file = form["image"]
-        image_path = os.path.join("static", "uploads", img_file.filename)
+        safe_img_name = os.path.basename(img_file.filename.replace('\\', '/'))
+        image_path = os.path.join("static", "uploads", safe_img_name)
         os.makedirs(os.path.dirname(image_path), exist_ok=True)
         with open(image_path, "wb") as buffer:
             shutil.copyfileobj(img_file.file, buffer)

@@ -25,9 +25,6 @@ def _dir_size_mb(path: str) -> float:
     )
     return total / (1024 * 1024)
 
-def get_books_size_mb() -> float:
-    return _dir_size_mb(BOOKS_DIR)
-
 def get_kb_size_mb() -> float:
     """Total size of books/ — the RAG-indexed folder."""
     return _dir_size_mb(BOOKS_DIR)

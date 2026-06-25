@@ -55,7 +55,7 @@ except ImportError:
 try:
     from config import (
         BASE_DIR, BOOKS_DIR, CODE_DIR, FAISS_DIR,
-        get_books_size_mb, get_kb_size_mb,
+        get_kb_size_mb,
         TOTAL_KB_MAX_MB, BOOKS_MAX_MB,
     )
     BOOKS_DIR = Path(BOOKS_DIR)
@@ -68,7 +68,7 @@ except ImportError:
     FAISS_DIR = Path(BASE_DIR) / "storage" / "faiss_db"
     TOTAL_KB_MAX_MB = 200
     BOOKS_MAX_MB    = 96
-    def get_books_size_mb(): return 0.0
+
     def get_kb_size_mb():    return 0.0
 
 BOOKS_DIR.mkdir(exist_ok=True)
@@ -793,7 +793,7 @@ def _check_kb_quota(upload_size_mb: float, label: str):
             f"Delete some documents or books to free space."
         )
     if label == "book":
-        current_books = get_books_size_mb()
+        current_books = get_kb_size_mb()
         if current_books + upload_size_mb > BOOKS_MAX_MB:
             remaining = max(0.0, BOOKS_MAX_MB - current_books)
             raise HTTPException(
@@ -872,7 +872,7 @@ async def report():
 @app.get("/health")
 async def health():
     kb_used  = round(get_kb_size_mb(), 1)
-    bk_used  = round(get_books_size_mb(), 1)
+    bk_used  = round(get_kb_size_mb(), 1)
     return {
         "status":        "operational",
         "port":          5091,
