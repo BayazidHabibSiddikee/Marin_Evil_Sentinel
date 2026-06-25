@@ -20,6 +20,16 @@ Built with FastAPI, LangChain/OpenRouter, FAISS, PostgreSQL, PDF.js, and LangGra
 
 ---
 
+## Screenshots
+
+![Landing Page](static/images/screenshots/landing_page.png)
+
+![Main Chat & Tools](static/images/screenshots/main_chat_tools.png)
+
+![Library View](static/images/screenshots/library_view.png)
+
+![Settings View](static/images/screenshots/settings_view.png)
+
 ## Overview
 
 Marin Kitagawa is a personal AI study partner with two modes:
