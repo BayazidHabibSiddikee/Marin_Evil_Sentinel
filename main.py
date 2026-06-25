@@ -121,7 +121,8 @@ async def onboarding_page(request: Request):
 @app.get("/api/settings")
 async def get_settings():
     import llm_manager
-    return {
+    from fastapi.responses import JSONResponse
+    response = JSONResponse({
         "user_name": database.get_state("USER_NAME") or "Bayazid",
         "location": database.get_state("LOCATION") or "Rajshahi",
         "openrouter_key": database.get_state("OPENROUTER_API_KEY") or "",
@@ -138,7 +139,9 @@ async def get_settings():
         # ── Multi-provider fields ──
         "providers": llm_manager.get_providers(),
         "deep_models": llm_manager.get_deep_models(),
-    }
+    })
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    return response
 
 @app.post("/api/settings/avatar")
 async def upload_avatar(avatar: UploadFile = File(...)):

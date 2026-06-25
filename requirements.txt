@@ -57,13 +57,13 @@ py7zr
 # geopy
 # folium
 
-# Office (optional, heavy)
+# Office
 # pandas
 # pdfplumber
-# fpdf2
-# img2pdf
-# pikepdf
-# pdf2docx
+fpdf2
+img2pdf
+pikepdf
+pdf2docx
 # python-pptx
 # PySide6
 # CPU-only torch (no CUDA bloat in Docker)

@@ -1071,11 +1071,13 @@
                 body: JSON.stringify({ tool, result: String(result).substring(0, 2000) })
             });
         } catch {}
+        // Persist so the next sendMessage() carries this to the LLM
+        window._toolContextPersisted = result;
     }
 
     (async function loadUserAvatar() {
         try {
-            const res = await fetch('/api/settings');
+            const res = await fetch('/api/settings?_=' + Date.now());
             const data = await res.json();
             if (data.user_avatar) userAvatar = data.user_avatar;
         } catch {}
@@ -1315,12 +1317,25 @@
         body.classList.toggle('collapsed');
     }
 
+    // Sync _providers from current DOM inputs so re-renders don't lose unsaved changes
+    function syncProvidersFromDOM() {
+        document.querySelectorAll('.provider-card').forEach((card, idx) => {
+            if (!_providers[idx]) return;
+            const nameInput = card.querySelector('.prov-name');
+            const urlInput = card.querySelector('.prov-base-url');
+            if (nameInput) _providers[idx].name = nameInput.value.trim() || _providers[idx].name;
+            if (urlInput) _providers[idx].base_url = urlInput.value.trim() || _providers[idx].base_url;
+        });
+    }
+
     function toggleProviderEnabled(idx) {
+        syncProvidersFromDOM();
         _providers[idx].enabled = !_providers[idx].enabled;
         renderProviders();
     }
 
     function moveProvider(idx, dir) {
+        syncProvidersFromDOM();
         const newIdx = idx + dir;
         if (newIdx < 0 || newIdx >= _providers.length) return;
         [_providers[idx], _providers[newIdx]] = [_providers[newIdx], _providers[idx]];
@@ -1329,6 +1344,7 @@
     }
 
     function removeProvider(idx) {
+        syncProvidersFromDOM();
         _providers.splice(idx, 1);
         _providers.forEach((p, i) => p.priority = i + 1);
         renderProviders();
@@ -1350,6 +1366,14 @@
         const card = select.closest('.provider-card');
         card.querySelector('.prov-base-url').value = preset.base_url;
         card.querySelector('.prov-name').value = preset.name;
+        // Update the backing _providers so re-renders don't wipe changes
+        if (_providers[idx]) {
+            _providers[idx].base_url = preset.base_url;
+            _providers[idx].name = preset.name;
+        }
+        // Update the header name immediately so user sees the change
+        const headerName = card.querySelector('.provider-name');
+        if (headerName) headerName.textContent = `#${idx+1} ${preset.name}`;
     }
 
     function addProvider() {
@@ -1454,7 +1478,7 @@
         document.getElementById('settings-msg').textContent = '';
         switchSettingsTab('general');
         try {
-            const res = await fetch('/api/settings');
+            const res = await fetch('/api/settings?_=' + Date.now());
             const data = await res.json();
             document.getElementById('set-name').value = data.user_name || '';
             document.getElementById('set-location').value = data.location || '';

@@ -1686,7 +1686,6 @@
                 document.getElementById('lib-repo-result').innerText = data.error;
             } else {
                 document.getElementById('lib-repo-result').innerText = 'Done!';
-                saveToolContext('analyze_link', data.message);
                 document.getElementById('lib-repo-url').value = '';
                 // Pass tool context to avoid double execution
                 sendToolMessage(`Analyze this link for me: ${url}`, data.message);
@@ -1712,10 +1711,9 @@
             } else {
                 // BUG 2 fix: render actual quiz HTML
                 document.getElementById('lib-quiz-result').innerHTML = data.quiz;
-                saveToolContext('quiz', `Quiz on ${topic}: generated`);
                 document.getElementById('lib-quiz-topic').value = '';
-                // Pass tool context to skip detection
-                sendToolMessage(`Generate a quiz about: ${topic}`, data.quiz);
+                // Save context to history so Marin can see it later, but DON'T trigger her immediately
+                saveToolContext('quiz', `Quiz on ${topic}: generated\n\n${data.quiz}`);
             }
         } catch (err) {
             document.getElementById('lib-quiz-result').innerText = 'Failed.';
@@ -1738,10 +1736,9 @@
                 document.getElementById('lib-translate-result').innerText = data.error;
             } else {
                 document.getElementById('lib-translate-result').innerText = data.message;
-                saveToolContext('translate', `Translated to ${lang}: ${data.message}`);
                 document.getElementById('lib-translate-text').value = '';
-                // Pass tool context
-                sendToolMessage(`Translate "${text}" to ${lang}`, data.message);
+                // Save context to history
+                saveToolContext('translate', `Translated "${text}" to ${lang}: ${data.message}`);
             }
         } catch (err) {
             document.getElementById('lib-translate-result').innerText = 'Failed.';
@@ -1764,10 +1761,9 @@
             } else {
                 const text = data.results || 'No results.';
                 document.getElementById('lib-search-result').innerText = text;
-                saveToolContext('web_search', `Searched: ${query}`);
                 document.getElementById('lib-search-query').value = '';
-                // Pass tool context
-                sendToolMessage(`Search the web for: ${query}`, text);
+                // Save context to history
+                saveToolContext('web_search', `Web Search for "${query}":\n${text}`);
             }
         } catch (err) {
             document.getElementById('lib-search-result').innerText = 'Failed.';
@@ -1789,11 +1785,10 @@
                 document.getElementById('lib-pdf-result').innerText = data.error;
             } else {
                 document.getElementById('lib-pdf-result').innerText = data.message || 'Downloaded!';
-                saveToolContext('pdf_download', `Downloaded: ${url}`);
                 document.getElementById('lib-pdf-url').value = '';
                 loadDocuments();
-                // Pass tool context
-                sendToolMessage(`Download this PDF: ${url}`, data.message || 'Downloaded!');
+                // Save context to history
+                saveToolContext('pdf_download', `Downloaded PDF: ${url}\n${data.message || ''}`);
             }
         } catch (err) {
             document.getElementById('lib-pdf-result').innerText = 'Failed.';
