@@ -1746,10 +1746,6 @@
                 if (data.format === 'html') {
                     addMessage('ai', data.quiz);
                 }
-                const rawQuizData = typeof data.raw_quiz !== 'undefined' ? data.raw_quiz : data.quiz;
-                const quizToolResult = `Generated Quiz for ${topic}:\n\n${JSON.stringify(rawQuizData)}`;
-                await saveToolContext('quiz', quizToolResult);
-                window._toolContextPersisted = quizToolResult;
                 document.getElementById('quiz-topic').value = '';
             }
         } catch (err) {
@@ -2120,22 +2116,66 @@
             console.error('Failed to load history:', e);
         }
     }
-    function checkAnswer(btn, qid, correct) {
-        const selected = document.querySelector(`input[name="${qid}"]:checked`);
-        if (!selected) return;
-        const isCorrect = selected.dataset.correct === 'true';
-        const explanation = btn.nextElementSibling;
-        const allLabels = btn.parentElement.querySelectorAll('label');
-        allLabels.forEach(l => {
-            const input = l.querySelector('input');
-            if (input.dataset.correct === 'true') l.style.background = 'rgba(76,175,80,.2)';
-            else if (input.checked && !isCorrect) l.style.background = 'rgba(244,67,54,.2)';
+    async function submitQuiz(btn) {
+        if (btn.disabled) return;
+        const container = btn.closest('.quiz-container');
+        const quizData = JSON.parse(container.dataset.quiz.replace(/&#39;/g, "'"));
+        const questions = quizData.questions;
+        
+        let correctCount = 0;
+        let mistakes = [];
+        
+        const qBlocks = container.querySelectorAll('.quiz-question-block');
+        qBlocks.forEach((block, i) => {
+            const q = questions[i];
+            const qid = `q${i}`;
+            const selected = block.querySelector(`input[name="${qid}"]:checked`);
+            const explanation = block.querySelector('.quiz-explanation');
+            const allLabels = block.querySelectorAll('label');
+            
+            let userAnsOpt = selected ? selected.value : "No Answer";
+            
+            // Check if user answer matches
+            let ans = String(q.answer).trim();
+            let correctOptStr = ans;
+            if (ans.length === 1 && ans >= 'A' && ans <= 'D') {
+                const idx = ans.charCodeAt(0) - 65;
+                if (q.options[idx]) correctOptStr = q.options[idx];
+            } else {
+                 const match = ans.match(/^[A-D][\.\)]\s*(.*)/);
+                 if (match) correctOptStr = match[1];
+            }
+            
+            const isCorrect = selected && (userAnsOpt === correctOptStr || userAnsOpt === ans || ans.startsWith(userAnsOpt) || userAnsOpt.startsWith(ans));
+            
+            allLabels.forEach(l => {
+                const input = l.querySelector('input');
+                input.disabled = true;
+                const isThisCorrect = (input.value === correctOptStr || input.value === ans || ans.startsWith(input.value) || input.value.startsWith(ans));
+                if (isThisCorrect) l.style.background = 'rgba(76,175,80,.2)';
+                else if (input.checked && !isCorrect) l.style.background = 'rgba(244,67,54,.2)';
+            });
+            
+            explanation.style.display = 'block';
+            explanation.style.background = isCorrect ? 'rgba(76,175,80,.15)' : 'rgba(244,67,54,.15)';
+            explanation.style.color = isCorrect ? '#4caf50' : '#f44336';
+            explanation.textContent = isCorrect ? 'Correct!' : 'Incorrect. The answer is ' + correctOptStr + '. ' + (q.explanation || '');
+            
+            if (isCorrect) {
+                correctCount++;
+            } else {
+                mistakes.push(`Q: ${q.question}\nUser picked: ${userAnsOpt}\nCorrect answer: ${correctOptStr}\nExplanation: ${q.explanation || 'None'}`);
+            }
         });
-        explanation.style.display = 'block';
-        explanation.style.background = isCorrect ? 'rgba(76,175,80,.15)' : 'rgba(244,67,54,.15)';
-        explanation.style.color = isCorrect ? '#4caf50' : '#f44336';
-        explanation.textContent = isCorrect ? 'Correct!' : 'Incorrect. The answer is ' + correct;
+        
+        btn.textContent = `Score: ${correctCount} / ${questions.length}`;
         btn.disabled = true;
+        
+        const summary = `I just completed the quiz on "${quizData.topic}".\nMy Score: ${correctCount}/${questions.length}.\n\n${mistakes.length > 0 ? "My mistakes:\n" + mistakes.join("\n\n") : "I got a perfect score!"}\n\nPlease review my performance and give me feedback.`;
+        
+        await saveToolContext('quiz_result', summary);
+        input.value = summary;
+        await sendMessage();
     }
 
     loadHistory();

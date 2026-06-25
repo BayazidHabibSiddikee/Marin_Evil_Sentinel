@@ -100,7 +100,7 @@ def get_providers() -> list:
     return providers
 
 def save_providers(providers: list):
-    database.set_state("PROVIDERS", json.dumps(providers))
+    database.set_state("PROVIDERS", providers)
 
 # ── Deep model list ─────────────────────────────────────────────────────────────
 def get_deep_models() -> list:
@@ -123,7 +123,7 @@ def get_deep_models() -> list:
     ]
 
 def save_deep_models(models: list):
-    database.set_state("DEEP_MODELS", json.dumps(models))
+    database.set_state("DEEP_MODELS", models)
 
 # ── Core LLM selector ──────────────────────────────────────────────────────────
 def get_best_llm(deep: bool = False):

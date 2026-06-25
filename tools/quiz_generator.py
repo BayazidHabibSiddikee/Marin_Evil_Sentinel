@@ -72,28 +72,32 @@ def generate_quiz(topic: str, num_questions: int = 5, rag_context: str = "") -> 
 
 def render_quiz_html(parsed: dict) -> str:
     """Render quiz JSON as interactive HTML."""
+    import json
     topic = parsed.get("topic", "Quiz")
     questions = parsed.get("questions", [])
 
-    html = f'<div style="padding:16px;"><h2 style="color:#ff6b9d;margin-bottom:16px;">Quiz: {topic}</h2>'
+    # Escape quotes for data attribute
+    quiz_json_str = json.dumps(parsed).replace("'", "&#39;")
+
+    html = f'<div class="quiz-container" data-quiz=\'{quiz_json_str}\' style="padding:16px;"><h2 style="color:#ff6b9d;margin-bottom:16px;">Quiz: {topic}</h2>'
 
     for i, q in enumerate(questions):
         qid = f"q{i}"
-        html += f'<div style="background:#1a1a2e;border-radius:8px;padding:14px;margin-bottom:12px;">'
+        html += f'<div class="quiz-question-block" style="background:#1a1a2e;border-radius:8px;padding:14px;margin-bottom:12px;">'
         html += f'<div style="font-weight:600;margin-bottom:10px;">Q{i+1}: {q["question"]}</div>'
         for j, opt in enumerate(q["options"]):
             letter = chr(65 + j)
-            correct = letter == q["answer"]
+            # The value is now the option text, not just the letter
             html += f'<label style="display:flex;align-items:center;gap:8px;padding:6px 10px;margin:3px 0;border-radius:6px;cursor:pointer;background:rgba(255,255,255,.03);" '
             html += f'onmouseover="this.style.background=\'rgba(255,107,157,.1)\'" '
             html += f'onmouseout="this.style.background=\'rgba(255,255,255,.03)\'">'
-            html += f'<input type="radio" name="{qid}" value="{letter}" data-correct="{correct}" style="accent-color:#ff6b9d;">'
+            html += f'<input type="radio" name="{qid}" value="{opt}" style="accent-color:#ff6b9d;">'
             html += f'<span>{letter}. {opt}</span></label>'
-        html += f'<button onclick="checkAnswer(this, \'{qid}\', \'{q["answer"]}\')" '
-        html += f'style="margin-top:8px;background:#ff6b9d;color:#0f0f23;border:none;padding:6px 16px;border-radius:6px;cursor:pointer;">Check</button>'
+        
         html += f'<div class="quiz-explanation" style="display:none;margin-top:8px;padding:8px;border-radius:6px;font-size:.85rem;"></div>'
         html += '</div>'
 
+    html += f'<button onclick="submitQuiz(this)" style="margin-top:16px;background:#ff6b9d;color:#0f0f23;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:bold;width:100%;">Submit Quiz</button>'
     html += '</div>'
 
     return html
