@@ -761,6 +761,11 @@ async def response(prompt: str, user_vibe: str = "neutral",
         context_for_marin = await run_langgraph_pipeline(lc_msgs)
         if context_for_marin and context_for_marin != "Task completed.":
             messages.append({"role": "system", "content": f"BACKGROUND TOOL RESULTS (Reference this to answer the user):\n{context_for_marin}"})
+            
+            # Format and yield the tool output directly to the user's chat stream
+            # so they can see what the agent found!
+            formatted_tools = f"\n<details>\n<summary><b>🔍 Tool Results</b></summary>\n\n```text\n{context_for_marin}\n```\n</details>\n\n"
+            yield formatted_tools
     except Exception as e:
         print(f"[LangGraph Error] {e}")
 
