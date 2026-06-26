@@ -907,4 +907,4 @@ if __name__ == "__main__":
             print(f"⚠️ Could not set memory limit: {e}")
 
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=args.port, reload=False)
+    uvicorn.run(app, host="0.0.0.0", port=args.port, reload=False)
