@@ -1,0 +1,2368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marin HS-04 — Library</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/contrib/auto-render.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
+    <style>
+        :root {
+            --ink:       #0d0608;
+            --ink2:      #130a0d;
+            --ink3:      #1c1014;
+            --surface:   #221419;
+            --border:    #3d2028;
+            --border-hi: #5c2d3a;
+            --teal:      #e8192f;
+            --teal-dim:  #c0152a;
+            --teal-glow: rgba(192,21,42,.3);
+            --teal-soft: rgba(192,21,42,.1);
+            --gold:      #c9964c;
+            --gold-dim:  rgba(201,150,76,.15);
+            --danger:     #c95b5b;
+            --success:    #5db882;
+            --text:      #f0e8e0;
+            --text-dim:  #a08880;
+            --text-muted:#6b4848;
+            --radius:     10px;
+            --radius-sm:  6px;
+        }
+
+        :root[data-theme="standard"] {
+            --ink:        #13100e;
+            --ink2:       #1c1814;
+            --ink3:       #221e19;
+            --surface:    #2a2520;
+            --border:     #3a342c;
+            --border-hi:  #52473c;
+            --teal:       #4db8a4;
+            --teal-dim:   #3a8f7e;
+            --teal-glow:  rgba(77,184,164,.25);
+            --teal-soft:  rgba(77,184,164,.08);
+            --gold:       #c9a84c;
+            --gold-dim:   rgba(201,168,76,.15);
+            --danger:     #c95b5b;
+            --success:    #5db882;
+            --text:       #e8e0d8;
+            --text-dim:   #a09488;
+            --text-muted: #6b6058;
+            --radius:     10px;
+            --radius-sm:  6px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+
+        body {
+            background: var(--ink);
+            color: var(--text);
+            font-family: 'DM Sans', -apple-system, sans-serif;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── TOPBAR ──────────────────────────────────────────────── */
+        .topbar {
+            background: var(--ink2);
+            border-bottom: 1px solid var(--border);
+            padding: 0 20px;
+            height: 54px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+        .topbar-left { display: flex; align-items: center; gap: 12px; }
+        .logo-name {
+            font-family: 'DM Serif Display', serif;
+            font-size: 1.05rem;
+            color: var(--text);
+        }
+        .logo-sub {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .6rem;
+            color: var(--teal);
+            letter-spacing: .08em;
+        }
+        .btn-back {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            padding: 5px 12px;
+            border-radius: var(--radius-sm);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .65rem;
+            cursor: pointer;
+            transition: all .2s;
+            text-decoration: none;
+        }
+        .btn-back:hover { border-color: var(--teal); color: var(--teal); }
+        .topbar-right { display: flex; align-items: center; gap: 8px; position: relative; }
+        .theme-toggle-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            padding: 5px 12px;
+            border-radius: var(--radius-sm);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .65rem;
+            cursor: pointer;
+            transition: all .2s;
+            letter-spacing: .04em;
+        }
+        .theme-toggle-btn:hover { border-color: var(--gold); color: var(--gold); }
+
+        /* ── MAIN LAYOUT ─────────────────────────────────────────── */
+        .container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* ── DOC LIST SIDEBAR ────────────────────────────────────── */
+        .doc-sidebar {
+            width: 280px;
+            min-width: 280px;
+            background: var(--ink2);
+            border-right: 1px solid var(--border);
+            overflow-y: auto;
+            padding: 12px 0;
+            flex-shrink: 0;
+            position: relative;
+            margin-left: -280px;
+            transition: margin-left .25s ease;
+            z-index: 100;
+        }
+        .doc-sidebar:hover,
+        .doc-sidebar.pinned {
+            margin-left: 0;
+        }
+        .sidebar-hover-trigger {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 12px;
+            height: 100%;
+            z-index: 101;
+            cursor: pointer;
+        }
+        .sidebar-hover-trigger::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 12px;
+            height: 48px;
+            background: var(--ink2);
+            border: 1px solid var(--border);
+            border-left: none;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+        }
+        .sidebar-heading {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .55rem;
+            color: var(--text-muted);
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            padding: 12px 16px 4px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .lib-upload-btn {
+            background: rgba(255,255,255,.06);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all .15s;
+            line-height: 1;
+        }
+        .lib-upload-btn:hover {
+            background: rgba(255,255,255,.12);
+            color: var(--text);
+        }
+        .doc-item {
+            padding: 10px 16px;
+            cursor: pointer;
+            transition: all .15s;
+            border-left: 2px solid transparent;
+        }
+        .doc-item:hover { background: rgba(77,184,164,.04); }
+        .doc-item.active { background: var(--teal-soft); border-left-color: var(--teal); }
+        .doc-title {
+            font-size: .82rem;
+            color: var(--text);
+            word-break: break-all;
+            margin-bottom: 2px;
+        }
+        .doc-meta {
+            font-size: .65rem;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .doc-item {
+            position: relative;
+        }
+        .doc-delete-btn {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 14px;
+            padding: 2px 5px;
+            border-radius: 4px;
+            opacity: 0;
+            transition: opacity .15s, color .15s;
+        }
+        .doc-item:hover .doc-delete-btn {
+            opacity: 1;
+        }
+        .doc-delete-btn:hover {
+            color: #ef4444;
+            background: rgba(239,68,68,.1);
+        }
+        .doc-empty {
+            padding: 20px 16px;
+            color: var(--text-muted);
+            font-size: .8rem;
+            text-align: center;
+        }
+
+        /* ── VIEWER ──────────────────────────────────────────────── */
+        .viewer {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            background: var(--ink);
+            transition: background .3s, color .3s;
+        }
+        #md-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 32px 40px;
+        }
+        .markdown-body {
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.7;
+            font-size: .95rem;
+            transition: color .3s;
+        }
+        .markdown-body h1, .markdown-body h2, .markdown-body h3 {
+            color: var(--teal);
+            font-family: 'DM Serif Display', serif;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 6px;
+            margin: 20px 0 12px;
+        }
+        .markdown-body p { margin: 8px 0; color: var(--text-dim); }
+        .markdown-body img { max-width: 100%; border-radius: var(--radius); border: 1px solid var(--border); }
+        .markdown-body pre {
+            background: var(--ink2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        .markdown-body code {
+            background: var(--surface);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .85rem;
+            color: var(--gold);
+        }
+        .markdown-body pre code { background: none; padding: 0; color: var(--text); }
+        .markdown-body blockquote {
+            border-left: 3px solid var(--teal);
+            padding-left: 16px;
+            color: var(--text-dim);
+            margin: 10px 0;
+        }
+        .markdown-body ul, .markdown-body ol { padding-left: 24px; margin: 8px 0; }
+        .markdown-body li { margin: 4px 0; color: var(--text-dim); }
+        .markdown-body a { color: var(--teal); }
+
+        .viewer-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-muted);
+            text-align: center;
+        }
+        .viewer-placeholder h2 {
+            font-family: 'DM Serif Display', serif;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+        }
+        .viewer-placeholder p { font-size: .85rem; }
+
+        .loader {
+            display: none;
+            text-align: center;
+            color: var(--teal);
+            padding: 40px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .8rem;
+            letter-spacing: .08em;
+        }
+
+        /* ── PDF VIEWER ──────────────────────────────────────────── */
+        #pdf-container {
+            display: none;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+        }
+        #pdf-container.active {
+            display: flex;
+        }
+        #pdf-nav {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 8px 16px;
+            background: var(--ink2);
+            border-bottom: 1px solid var(--border);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .75rem;
+            color: var(--text-dim);
+            flex-shrink: 0;
+            z-index: 10;
+        }
+        #pdf-nav button {
+            background: var(--ink);
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            padding: 4px 10px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .7rem;
+            transition: all .15s;
+        }
+        #pdf-nav button:hover:not(:disabled) {
+            border-color: var(--teal);
+            color: var(--teal);
+        }
+        #pdf-nav button:disabled {
+            opacity: .3;
+            cursor: default;
+        }
+        #pdf-nav .page-info {
+            color: var(--text-muted);
+            min-width: 80px;
+            text-align: center;
+        }
+        #pdf-nav .zoom-controls {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-left: 16px;
+            padding-left: 16px;
+            border-left: 1px solid var(--border);
+        }
+        #pdf-nav .zoom-controls button {
+            padding: 4px 8px;
+        }
+        #pdf-nav .zoom-level {
+            min-width: 40px;
+            text-align: center;
+            color: var(--text-muted);
+        }
+        #pdf-viewport {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 16px 0;
+            gap: 12px;
+            background: var(--ink);
+            position: relative;
+        }
+        .pdf-page-wrapper {
+            position: relative;
+            box-shadow: 0 2px 12px rgba(0,0,0,.5);
+            border: 1px solid var(--border);
+        }
+        .pdf-page-wrapper canvas {
+            display: block;
+        }
+        .pdf-text-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            overflow: hidden;
+            opacity: .25;
+            line-height: 1;
+        }
+        .pdf-text-layer > span {
+            color: transparent;
+            position: absolute;
+            white-space: pre;
+            transform-origin: 0% 0%;
+            cursor: text;
+        }
+        .pdf-text-layer ::selection {
+            background: var(--selection-bg, rgba(77, 184, 164, .3)) !important;
+            color: transparent !important;
+        }
+        .pdf-text-layer ::-moz-selection {
+            background: var(--selection-bg, rgba(77, 184, 164, .3)) !important;
+            color: transparent !important;
+        }
+        .viewer ::selection,
+        #md-content ::selection {
+            background: var(--selection-bg, rgba(77, 184, 164, .3)) !important;
+        }
+        #pdf-loading {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: var(--teal);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .8rem;
+            letter-spacing: .08em;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        /* ── CHAT PANEL ──────────────────────────────────────────── */
+        .resize-handle {
+            width: 4px;
+            cursor: col-resize;
+            background: var(--border);
+            transition: background .2s;
+            flex-shrink: 0;
+        }
+        .resize-handle:hover,
+        .resize-handle.active {
+            background: var(--teal);
+        }
+        .chat-panel {
+            width: 50%;
+            min-width: 300px;
+            max-width: 50%;
+            background: var(--ink);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+        .chat-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            font-family: 'DM Serif Display', serif;
+            font-size: .9rem;
+            color: var(--teal);
+            text-align: center;
+        }
+        #chat {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .msg {
+            display: flex;
+            gap: 10px;
+            max-width: 85%;
+            min-width: 0;
+            animation: fadeIn .2s ease;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+        .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+        .msg.ai   { align-self: flex-start; }
+        .msg .avatar {
+            width: 28px; height: 28px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-family: 'DM Serif Display', serif;
+            font-size: .75rem;
+            flex-shrink: 0;
+        }
+        .msg.ai .avatar {
+            background: linear-gradient(135deg, var(--teal), var(--teal-dim));
+            color: #fff;
+            border: 1px solid var(--teal-dim);
+        }
+        .msg.user .avatar {
+            background: var(--surface);
+            color: var(--text-dim);
+            border: 1px solid var(--border);
+        }
+        .bubble {
+            background: var(--ink2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 10px 14px;
+            line-height: 1.5;
+            font-size: .85rem;
+            color: var(--text);
+            word-break: break-word;
+            min-width: 0;
+            overflow: hidden;
+        }
+        .msg.user .bubble { background: var(--teal-soft); border-color: var(--teal-dim); }
+        .bubble p { margin: 4px 0; }
+        .bubble pre {
+            background: var(--ink); border: 1px solid var(--border);
+            border-radius: 4px; padding: 8px 10px; overflow-x: auto;
+            font-size: .78rem; white-space: pre-wrap; margin: 6px 0;
+        }
+        .bubble code {
+            background: var(--surface); padding: 1px 4px; border-radius: 3px;
+            font-family: 'JetBrains Mono', monospace; font-size: .78rem;
+        }
+        .bubble pre code { background: none; padding: 0; }
+        .chat-input {
+            padding: 12px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 8px;
+        }
+        .chat-input input {
+            flex: 1;
+            background: var(--ink2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 8px 12px;
+            color: var(--text);
+            font-size: .85rem;
+        }
+        .chat-input input:focus { border-color: var(--teal); outline: none; }
+        .chat-input button {
+            background: var(--teal);
+            color: #000;
+            border: none;
+            padding: 8px 14px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .8rem;
+            font-weight: 500;
+        }
+        .chat-input button:hover { background: var(--teal-dim); }
+        .chat-tools-row {
+            padding: 8px 12px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+        .chat-tools-row .tool-btn {
+            background: var(--ink2);
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            padding: 3px 8px;
+            border-radius: var(--radius-sm);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .6rem;
+            cursor: pointer;
+            transition: all .2s;
+        }
+        .chat-tools-row .tool-btn:hover { border-color: var(--teal); color: var(--teal); }
+        .chat-tools-row .hint-text {
+            margin-left: auto;
+            color: var(--text-muted);
+            font-size: .6rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        #lib-attach-preview img { height: 16px; border-radius: 3px; margin-left: 4px; vertical-align: middle; }
+        .lib-tools-panel {
+            border-top: 1px solid var(--border);
+            padding: 8px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .lib-tool-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .lib-tool-row .lib-tool-input {
+            flex: 1;
+            min-width: 0;
+            padding: 5px 8px;
+            background: var(--ink);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text);
+            font-size: .65rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .lib-tool-row .lib-tool-input:focus { border-color: var(--teal); outline: none; }
+        .lib-tool-row select.lib-tool-input {
+            flex: 0 0 auto;
+            width: auto;
+            padding: 5px 4px;
+        }
+        .lib-tool-row .lib-tool-btn {
+            flex: 0 0 70px;
+            width: 70px;
+            padding: 5px 0;
+            background: var(--teal);
+            color: #000;
+            border: none;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: .6rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+            text-align: center;
+        }
+        .lib-tool-row .lib-tool-btn:hover { opacity: .85; }
+        .lib-tool-result {
+            font-size: .6rem;
+            color: var(--teal);
+            padding: 2px 0 4px 0;
+            word-break: break-word;
+            min-height: 0;
+        }
+        .lib-tool-result:empty { display: none; }
+
+        /* ── PLAYGROUND ──────────────────────────────────────────── */
+        .playground-wrap {
+            margin-top: 10px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            background: #0d1117;
+        }
+        .playground-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: var(--ink2);
+            border-bottom: 1px solid var(--border);
+        }
+        .playground-header span {
+            font-size: .75rem;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--teal);
+        }
+        .playground-header button {
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 2px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: .65rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .playground-header button:hover { border-color: var(--teal); color: var(--teal); }
+        .playground-frame {
+            width: 100%;
+            min-height: 300px;
+            max-height: 500px;
+            border: none;
+            display: block;
+        }
+        .playground-loading {
+            padding: 40px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: .8rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .playground-loading::after {
+            content: '';
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--border);
+            border-top-color: var(--teal);
+            border-radius: 50%;
+            animation: spin .6s linear infinite;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── COMMENT BUTTON ──────────────────────────────────────── */
+        #comment-btn {
+            position: fixed;
+            display: none;
+            background: var(--teal);
+            color: #000;
+            border: none;
+            padding: 6px 12px;
+            border-radius: var(--radius-sm);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .7rem;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,.4);
+            z-index: 1000;
+        }
+        #comment-btn:hover { background: var(--teal-dim); }
+
+        /* ── RESPONSIVE ──────────────────────────────────────────── */
+        @media (max-width: 900px) {
+            .chat-panel { display: none; }
+            .resize-handle { display: none; }
+            .sidebar-hover-trigger { display: none; }
+        }
+        @media (max-width: 600px) {
+            .doc-sidebar { width: 60px; min-width: 60px; margin-left: -56px; }
+            .doc-sidebar:hover, .doc-sidebar.pinned { margin-left: 0; }
+            .doc-title, .doc-meta, .sidebar-heading { display: none; }
+            .resize-handle { display: none; }
+            .chat-panel { width: 100%; max-width: 100%; }
+        }
+
+        /* Context menu */
+        .ctx-menu {
+            display: none; position: fixed; z-index: 9999;
+            background: var(--ink); border: 1px solid var(--border-hi);
+            border-radius: 8px; padding: 4px 0; min-width: 120px;
+            box-shadow: 0 8px 24px rgba(0,0,0,.5);
+        }
+        .ctx-menu.open { display: block; }
+        .ctx-menu button {
+            display: block; width: 100%; text-align: left;
+            background: none; border: none; color: var(--text);
+            padding: 8px 14px; font-size: .82rem; cursor: pointer;
+        }
+        .ctx-menu button:hover { background: rgba(77,184,164,.1); color: var(--teal); }
+
+        /* Reply preview bar */
+        .reply-preview {
+            display: none; align-items: center; gap: 8px;
+            padding: 6px 12px; background: var(--surface);
+            border-bottom: 1px solid var(--border); font-size: .78rem;
+        }
+        .reply-preview.open { display: flex; }
+        .reply-preview .rp-text { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+        .reply-preview .rp-role { font-weight: 600; color: var(--teal); font-size: .7rem; flex-shrink: 0; }
+        .reply-preview .rp-close {
+            background: none; border: none; color: var(--text-dim);
+            cursor: pointer; font-size: 1.1rem; padding: 0 4px;
+        }
+        .reply-preview .rp-close:hover { color: var(--danger); }
+
+        /* Reply quote in bubble */
+        .reply-quote {
+            background: rgba(77,184,164,.08); border-left: 3px solid var(--teal);
+            padding: 4px 8px; margin-bottom: 6px; border-radius: 0 4px 4px 0;
+            font-size: .75rem; color: var(--text-dim);
+        }
+        .reply-quote .rq-role { font-weight: 600; color: var(--teal); font-size: .68rem; }
+
+        /* ── Storage quota bar ── */
+        .quota-bar-wrap {
+            padding: 8px 14px 4px;
+            border-bottom: 1px solid var(--border);
+        }
+        .quota-label {
+            display: flex;
+            justify-content: space-between;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .58rem;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+        .quota-label span:last-child { color: var(--text-dim); }
+        .quota-track {
+            height: 4px;
+            background: var(--surface);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .quota-fill {
+            height: 100%;
+            border-radius: 2px;
+            background: var(--teal);
+            transition: width .4s ease, background .3s;
+        }
+        .quota-fill.warn  { background: var(--gold); }
+        .quota-fill.full  { background: var(--danger); }
+        .quota-sub {
+            display: flex;
+            justify-content: space-between;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .55rem;
+            color: var(--text-muted);
+            margin-top: 3px;
+        }
+
+        /* ── RAG STATUS INDICATOR ──────────────────────────────── */
+        .rag-status {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: 8px 12px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .6rem;
+            color: var(--text-dim);
+            background: var(--ink);
+            border-top: 1px solid var(--border);
+        }
+        .rag-status-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .rag-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--text-muted);
+            flex-shrink: 0;
+            transition: background .3s;
+        }
+        .rag-dot.indexing {
+            background: var(--teal);
+            animation: rag-pulse 1s ease-in-out infinite;
+        }
+        .rag-dot.error { background: var(--danger); }
+        @keyframes rag-pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: .4; transform: scale(1.3); }
+        }
+        .rag-label { color: var(--text-dim); }
+        .rag-bar-wrap {
+            width: 100%;
+            height: 3px;
+            background: var(--surface);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .rag-bar-fill {
+            height: 100%;
+            background: var(--teal);
+            border-radius: 2px;
+            transition: width .4s ease;
+            width: 0%;
+        }
+        .rag-pct { color: var(--teal); font-weight: 600; min-width: 28px; text-align: right; }
+
+        /* ── READING COLOR CUSTOMIZER ─────────────────────────── */
+        .reader-cfg-btn {
+            background: var(--ink2);
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            padding: 5px 10px;
+            border-radius: var(--radius-sm);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .6rem;
+            cursor: pointer;
+            transition: all .2s;
+            letter-spacing: .04em;
+        }
+        .reader-cfg-btn:hover { border-color: var(--teal); color: var(--teal); }
+        .reader-cfg-panel {
+            display: none;
+            position: absolute;
+            top: 40px;
+            right: 0;
+            z-index: 1000;
+            background: var(--ink2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px;
+            width: 220px;
+            box-shadow: 0 8px 24px rgba(0,0,0,.4);
+        }
+        .reader-cfg-panel.open { display: block; }
+        .reader-cfg-panel h4 {
+            font-family: 'DM Serif Display', serif;
+            font-size: .85rem;
+            color: var(--teal);
+            margin-bottom: 10px;
+        }
+        .rc-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .rc-row label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .6rem;
+            color: var(--text-dim);
+            letter-spacing: .05em;
+        }
+        .rc-row input[type="color"] {
+            width: 28px;
+            height: 22px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: var(--ink);
+            cursor: pointer;
+            padding: 1px;
+        }
+        .rc-presets {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-top: 8px;
+        }
+        .rc-preset {
+            padding: 3px 8px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: var(--ink3);
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .55rem;
+            cursor: pointer;
+            transition: all .15s;
+        }
+        .rc-preset:hover { border-color: var(--teal); color: var(--teal); }
+        .rc-preset.active { border-color: var(--teal); color: var(--teal); background: var(--teal-soft); }
+        .rc-reset {
+            display: block;
+            width: 100%;
+            margin-top: 10px;
+            padding: 4px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .55rem;
+            cursor: pointer;
+            transition: all .15s;
+        }
+        .rc-reset:hover { border-color: var(--danger); color: var(--danger); }
+    </style>
+</head>
+<body>
+
+<header class="topbar">
+    <div class="topbar-left">
+        <span class="logo-name">Library</span>
+        <span class="logo-sub" id="lib-logo-sub">MARIN HS-04</span>
+    </div>
+    <div class="topbar-right">
+        <a href="/" class="btn-back" style="text-decoration:none">&larr; Landing</a>
+        <a href="/chat" class="btn-back" style="text-decoration:none">&#9776; Chat</a>
+        <button class="reader-cfg-btn" onclick="toggleReaderCfg()" title="Reading Colors">Aa Colors</button>
+        <button id="lib-theme-btn" class="theme-toggle-btn" onclick="libToggleTheme()">Sweet Mode</button>
+        <div class="reader-cfg-panel" id="reader-cfg-panel">
+            <h4>Reading Colors</h4>
+            <div class="rc-row">
+                <label>Background</label>
+                <input type="color" id="rc-bg" value="#0d0608" onchange="applyReaderColors()">
+            </div>
+            <div class="rc-row">
+                <label>Text</label>
+                <input type="color" id="rc-fg" value="#f0e8e0" onchange="applyReaderColors()">
+            </div>
+            <div class="rc-row">
+                <label>Headings</label>
+                <input type="color" id="rc-hl" value="#e8192f" onchange="applyReaderColors()">
+            </div>
+            <div class="rc-presets" id="rc-presets">
+                <button class="rc-preset" onclick="setReaderPreset('evil')">Evil Dark</button>
+                <button class="rc-preset" onclick="setReaderPreset('warm')">Warm Sepia</button>
+                <button class="rc-preset" onclick="setReaderPreset('forest')">Forest</button>
+                <button class="rc-preset" onclick="setReaderPreset('ocean')">Ocean</button>
+                <button class="rc-preset" onclick="setReaderPreset('lavender')">Lavender</button>
+                <button class="rc-preset" onclick="setReaderPreset('paper')">Paper</button>
+            </div>
+            <button class="rc-reset" onclick="resetReaderColors()">Reset to Theme Default</button>
+        </div>
+    </div>
+</header>
+
+<div class="container">
+    <div class="sidebar-hover-trigger" id="sidebar-trigger"></div>
+    <div class="doc-sidebar" id="doc-list">
+        <div class="sidebar-heading">
+            <span>Documents</span>
+            <div style="display:flex; gap:6px;">
+                <button id="rag-status-btn" class="lib-upload-btn" title="RAG Sync Status" style="display:none; font-size:9px; width:auto; padding:0 4px;">
+                    <span id="rag-status-text">0%</span>
+                </button>
+                <label class="lib-upload-btn" title="Upload book/document">
+                    <input type="file" id="lib-file-input" accept=".pdf,.docx,.txt,.md" hidden>
+                    +
+                </label>
+            </div>
+        </div>
+        <div class="quota-bar-wrap" id="quota-wrap" style="display:none">
+            <div class="quota-label">
+                <span>STORAGE</span>
+                <span id="quota-text">… / …</span>
+            </div>
+            <div class="quota-track">
+                <div class="quota-fill" id="quota-fill" style="width:0%"></div>
+            </div>
+            <div class="quota-sub">
+                <span id="quota-books-text">books: —</span>
+            </div>
+        </div>
+        <div class="doc-empty">Loading...</div>
+    </div>
+
+    <div class="viewer" id="viewer-container" style="position:relative;">
+        <div class="loader" id="loader">Loading document...</div>
+        <div id="md-content">
+            <div class="viewer-placeholder">
+                <h2>Select a document</h2>
+                <p>Highlight text to ask Marin about it.</p>
+            </div>
+        </div>
+        <div id="pdf-container">
+            <div id="pdf-nav">
+                <button id="pdf-prev" onclick="pdfGoPrev()" disabled>&larr; Prev</button>
+                <div class="page-info" style="display:flex; align-items:center; gap:6px; background:var(--ink); border:1px solid var(--border); border-radius:var(--radius-sm); padding:4px 12px;">
+                    <input type="number" id="pdf-page-input" min="1" style="width:50px; background:transparent; color:var(--text); border:none; text-align:center; padding:2px; font-family:'JetBrains Mono', monospace; font-size:.85rem; font-weight:600; outline:none;" onchange="pdfGoToPage(parseInt(this.value))" onkeydown="if(event.key==='Enter'){event.preventDefault();pdfGoToPage(parseInt(this.value));this.blur();}">
+                    <span style="color:var(--text-muted); font-size:.8rem; font-family:'JetBrains Mono', monospace;">/</span>
+                    <span id="pdf-total-pages" style="color:var(--text-dim); font-size:.8rem; font-family:'JetBrains Mono', monospace; min-width:24px;">—</span>
+                </div>
+                <button id="pdf-next" onclick="pdfGoNext()">Next &rarr;</button>
+                <div class="zoom-controls">
+                    <button onclick="pdfZoomOut()">&minus;</button>
+                    <span class="zoom-level" id="pdf-zoom-level">100%</span>
+                    <button onclick="pdfZoomIn()">+</button>
+                </div>
+            </div>
+            <div id="pdf-viewport">
+                <!-- BUG 4 fix: pdf-loading is inside the viewport as a centered overlay -->
+                <div id="pdf-loading">Loading PDF...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="resize-handle" id="resize-handle"></div>
+
+    <div class="chat-panel">
+        <div class="chat-header">Chat with Marin</div>
+        <div class="reply-preview" id="reply-preview">
+            <span class="rp-role">Replying to</span>
+            <span class="rp-text" id="rp-text"></span>
+            <button class="rp-close" onclick="cancelReply()">&times;</button>
+        </div>
+        <div id="chat"></div>
+        <form id="msg-form" class="chat-input">
+            <input type="text" id="msg-input" placeholder="Ask about the document..." autocomplete="off" required>
+            <button type="submit">Send</button>
+        </form>
+        <div class="chat-tools-row">
+            <button type="button" class="tool-btn" id="lib-depth-btn" onclick="libCycleDepth()">depth: standard</button>
+            <label class="tool-btn" for="lib-attach-input">clip</label>
+            <input type="file" id="lib-attach-input" accept="image/*" onchange="libHandleAttach(event)" style="display:none">
+            <span id="lib-attach-preview"></span>
+            <button type="button" class="tool-btn" onclick="toggleLibTools()">tools</button>
+        </div>
+        <div id="lib-tools-panel" class="lib-tools-panel" style="display:none;">
+            <div class="lib-tool-row">
+                <input type="text" id="lib-repo-url" placeholder="Repo / link URL" class="lib-tool-input">
+                <button onclick="libAnalyzeRepo()" class="lib-tool-btn">Analyze</button>
+            </div>
+            <div id="lib-repo-result" class="lib-tool-result"></div>
+            <div class="lib-tool-row">
+                <input type="text" id="lib-quiz-topic" placeholder="Quiz topic" class="lib-tool-input">
+                <button onclick="libGenQuiz()" class="lib-tool-btn">Quiz</button>
+            </div>
+            <div id="lib-quiz-result" class="lib-tool-result"></div>
+            <div class="lib-tool-row">
+                <input type="text" id="lib-translate-text" placeholder="Translate text" class="lib-tool-input">
+                <select id="lib-translate-lang" class="lib-tool-input">
+                    <option value="bn">BN</option><option value="en">EN</option><option value="zh">ZH</option><option value="es">ES</option><option value="fr">FR</option><option value="ja">JA</option><option value="de">DE</option><option value="ar">AR</option><option value="hi">HI</option>
+                </select>
+                <button onclick="libTranslate()" class="lib-tool-btn">Translate</button>
+            </div>
+            <div id="lib-translate-result" class="lib-tool-result"></div>
+            <div class="lib-tool-row">
+                <input type="text" id="lib-search-query" placeholder="Web search" class="lib-tool-input">
+                <button onclick="libWebSearch()" class="lib-tool-btn">Search</button>
+            </div>
+            <div id="lib-search-result" class="lib-tool-result"></div>
+            <div class="lib-tool-row">
+                <input type="text" id="lib-pdf-url" placeholder="PDF URL" class="lib-tool-input">
+                <button onclick="libDownloadPdf()" class="lib-tool-btn">Download</button>
+            </div>
+            <div id="lib-pdf-result" class="lib-tool-result"></div>
+        </div>
+    </div>
+</div>
+
+<button id="comment-btn">Ask Marin</button>
+
+<div class="ctx-menu" id="ctx-menu">
+    <button onclick="replyToMessage()">Reply</button>
+</div>
+
+<script>
+    let currentDocument = sessionStorage.getItem('libCurrentDoc') || null;
+    let marinAvatar = localStorage.getItem('marinTheme') === 'standard' ? '/static/images/marin.png' : '/static/images/marin_evil.png';
+    let userAvatar = '';
+    let replyContext = null;
+
+    // ── PDF.js State ──────────────────────────────────────────
+    let pdfDoc = null;
+    let currentPage = 1;
+    let totalPages = 0;
+    let pdfScale = 1.3;
+    let renderedPages = new Set();
+    let isPdfMode = false;
+
+    async function saveToolContext(tool, result) {
+        try {
+            await fetch('/api/chat/context', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tool, result: String(result).substring(0, 2000) })
+            });
+        } catch {}
+    }
+
+    (async function loadAvatars() {
+        try {
+            const res = await fetch('/api/settings');
+            const data = await res.json();
+            if (data.user_avatar) userAvatar = data.user_avatar;
+        } catch {}
+    })();
+
+    function escapeHtml(str) {
+        const d = document.createElement('div');
+        d.textContent = str;
+        return d.innerHTML;
+    }
+
+    async function loadDocuments() {
+        try {
+            const res = await fetch('/api/documents');
+            const data = await res.json();
+            const list = document.getElementById('doc-list');
+            list.innerHTML = `
+                <div class="sidebar-heading"><span>Documents</span><label class="lib-upload-btn" title="Upload"><input type="file" id="lib-file-input" accept=".pdf,.docx,.txt,.md" hidden>+</label></div>
+                <div class="quota-bar-wrap" id="quota-wrap" style="display:none">
+                    <div class="quota-label"><span>STORAGE</span><span id="quota-text">… / …</span></div>
+                    <div class="quota-track"><div class="quota-fill" id="quota-fill" style="width:0%"></div></div>
+                    <div class="quota-sub"><span id="quota-books-text">books: —</span></div>
+                </div>
+                <div class="rag-status" id="rag-status" style="display:none">
+                    <div class="rag-status-row">
+                        <div class="rag-dot" id="rag-dot"></div>
+                        <span class="rag-label" id="rag-label">RAG: idle</span>
+                        <span class="rag-pct" id="rag-pct"></span>
+                    </div>
+                    <div class="rag-bar-wrap" id="rag-bar-wrap" style="display:none">
+                        <div class="rag-bar-fill" id="rag-bar-fill"></div>
+                    </div>
+                </div>`;
+
+            if (!data.documents || data.documents.length === 0) {
+                list.innerHTML += '<div class="doc-empty">No documents found.</div>';
+            } else {
+                data.documents.forEach(doc => {
+                    const el = document.createElement('div');
+                    el.className = 'doc-item';
+                    el.innerHTML = `
+                        <div class="doc-title">${escapeHtml(doc.filename)}</div>
+                        <div class="doc-meta">${escapeHtml(doc.type)} &middot; ${doc.size}</div>
+                        <button class="doc-delete-btn" onclick="event.stopPropagation(); deleteBook('${escapeHtml(doc.filename)}')" title="Delete">&#10005;</button>
+                    `;
+                    el.onclick = () => {
+                        document.querySelectorAll('.doc-item').forEach(d => d.classList.remove('active'));
+                        el.classList.add('active');
+                        openDocument(doc.filename);
+                    };
+                    list.appendChild(el);
+                });
+            }
+
+            // Fetch storage quota from /api/rag/health
+            try {
+                const hr = await fetch('/api/rag/health');
+                if (hr.ok) {
+                    const hd = await hr.json();
+                    const s = hd.storage;
+                    if (s) {
+                        const pct = Math.min(s.pct_used, 100);
+                        const fill = document.getElementById('quota-fill');
+                        const qtext = document.getElementById('quota-text');
+                        const qbooks = document.getElementById('quota-books-text');
+                        const qwrap = document.getElementById('quota-wrap');
+                        if (fill && qtext && qbooks && qwrap) {
+                            qwrap.style.display = 'block';
+                            fill.style.width = pct + '%';
+                            fill.className = 'quota-fill' +
+                                (pct >= 90 ? ' full' : pct >= 70 ? ' warn' : '');
+                            qtext.textContent = `${s.total_kb_mb} / ${s.limit_kb_mb} MB`;
+                            qbooks.textContent = `books: ${s.books_mb} MB`;
+                        }
+                    }
+                }
+            } catch {}
+
+            // Auto-restore previously opened document
+            if (currentDocument) {
+                const exists = data.documents && data.documents.some(d => d.filename === currentDocument);
+                if (exists) {
+                    const item = list.querySelector('.doc-title');
+                    list.querySelectorAll('.doc-item').forEach(el => {
+                        if (el.querySelector('.doc-title').textContent === currentDocument) {
+                            el.classList.add('active');
+                        }
+                    });
+                    openDocument(currentDocument);
+                } else {
+                    currentDocument = null;
+                    sessionStorage.removeItem('libCurrentDoc');
+                }
+            }
+
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    // ── RAG status polling ──────────────────────────────────────
+    let ragPollTimer = null;
+    async function pollRagStatus() {
+        const dot = document.getElementById('rag-dot');
+        const label = document.getElementById('rag-label');
+        const wrap = document.getElementById('rag-status');
+        const pctEl = document.getElementById('rag-pct');
+        const barWrap = document.getElementById('rag-bar-wrap');
+        const barFill = document.getElementById('rag-bar-fill');
+        if (!dot || !label || !wrap) return;
+        try {
+            const r = await fetch('/api/rag/index_progress');
+            const p = await r.json();
+            if (p.state === 'indexing' && p.total > 0) {
+                const pct = Math.round((p.current / p.total) * 100);
+                wrap.style.display = 'flex';
+                dot.className = 'rag-dot indexing';
+                label.textContent = `Indexing: ${p.file}`;
+                if (pctEl) pctEl.textContent = `${pct}%`;
+                if (barWrap) barWrap.style.display = 'block';
+                if (barFill) barFill.style.width = pct + '%';
+            } else {
+                dot.className = 'rag-dot';
+                label.textContent = 'RAG: ready';
+                if (pctEl) pctEl.textContent = '';
+                if (barWrap) barWrap.style.display = 'none';
+                if (barFill) barFill.style.width = '0%';
+            }
+        } catch {
+            dot.className = 'rag-dot error';
+            label.textContent = 'RAG: unreachable';
+            if (pctEl) pctEl.textContent = '';
+        }
+    }
+    function startRagPolling() {
+        pollRagStatus();
+        ragPollTimer = setInterval(pollRagStatus, 5000);
+    }
+
+    document.addEventListener('change', async (e) => {
+        if (e.target.id !== 'lib-file-input') return;
+        const file = e.target.files[0];
+        if (!file) return;
+        e.target.value = '';
+
+        const ragBtn = document.getElementById('rag-status-btn');
+        const ragText = document.getElementById('rag-status-text');
+        ragBtn.style.display = 'flex';
+        ragBtn.style.color = 'var(--gold)';
+        ragBtn.style.borderColor = 'var(--gold)';
+        ragText.textContent = '0%';
+
+        const form = new FormData();
+        form.append('file', file);
+        
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/documents/upload');
+        xhr.upload.onprogress = (evt) => {
+            if (evt.lengthComputable) {
+                const percent = Math.round((evt.loaded / evt.total) * 100);
+                ragText.textContent = percent + '%';
+            }
+        };
+        xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                ragText.textContent = 'SYNC';
+                ragBtn.style.color = 'var(--success)';
+                ragBtn.style.borderColor = 'var(--success)';
+                loadDocuments();
+                setTimeout(() => {
+                    ragBtn.style.display = 'none';
+                    ragBtn.style.color = '';
+                    ragBtn.style.borderColor = '';
+                }, 3000);
+            } else {
+                let msg = 'Upload failed';
+                try { msg = JSON.parse(xhr.responseText).error || JSON.parse(xhr.responseText).detail || msg; } catch(e){}
+                ragText.textContent = 'ERR';
+                ragBtn.style.color = 'var(--danger)';
+                ragBtn.style.borderColor = 'var(--danger)';
+                alert('\u26a0\ufe0f ' + msg);
+            }
+        };
+        xhr.onerror = () => {
+            ragText.textContent = 'ERR';
+            ragBtn.style.color = 'var(--danger)';
+            ragBtn.style.borderColor = 'var(--danger)';
+            alert('Upload failed due to network error.');
+        };
+        xhr.send(form);
+    });
+
+    // ── PDF.js Functions ─────────────────────────────────────
+    async function renderPdfPage(pageNum) {
+        if (!pdfDoc) return;
+        const viewport = document.getElementById('pdf-viewport');
+        const wrapper = viewport.querySelector(`[data-page="${pageNum}"]`);
+        if (!wrapper || wrapper.dataset.rendering) return;
+        wrapper.dataset.rendering = "true";
+        
+        const page = await pdfDoc.getPage(pageNum);
+        const scaledViewport = page.getViewport({ scale: pdfScale });
+        const canvas = document.createElement('canvas');
+        canvas.width = scaledViewport.width;
+        canvas.height = scaledViewport.height;
+        const ctx = canvas.getContext('2d');
+        await page.render({ canvasContext: ctx, viewport: scaledViewport }).promise;
+        
+        wrapper.innerHTML = '';
+        wrapper.style.minHeight = scaledViewport.height + 'px';
+        wrapper.style.width = scaledViewport.width + 'px';
+        wrapper.style.margin = '0 auto 20px auto';
+        wrapper.appendChild(canvas);
+
+        // Apply saved reader colors to this page's canvas
+        const savedColors = JSON.parse(localStorage.getItem('readerColors'));
+        if (savedColors && savedColors.bg) {
+            const r = parseInt(savedColors.bg.slice(1,3), 16);
+            const g = parseInt(savedColors.bg.slice(3,5), 16);
+            const b = parseInt(savedColors.bg.slice(5,7), 16);
+            const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+            canvas.style.filter = brightness < 80 ? 'invert(0.88) hue-rotate(180deg)' : '';
+        }
+
+        // Text layer for selection
+        try {
+            const textContent = await page.getTextContent();
+            const textLayer = document.createElement('div');
+            textLayer.className = 'pdf-text-layer';
+            textLayer.style.width = scaledViewport.width + 'px';
+            textLayer.style.height = scaledViewport.height + 'px';
+            const textLayerRender = pdfjsLib.renderTextLayer({
+                textContentSource: textContent,
+                container: textLayer,
+                viewport: scaledViewport,
+                textDivs: []
+            });
+            if (textLayerRender && textLayerRender.promise) {
+                await textLayerRender.promise.catch(() => {});
+            }
+            wrapper.appendChild(textLayer);
+        } catch (e) {
+            console.debug('Text layer skip:', e);
+        }
+        renderedPages.add(pageNum);
+    }
+
+    async function renderPdfRange(start, end) {
+        for (let i = start; i <= end && i <= totalPages; i++) {
+            if (!renderedPages.has(i)) await renderPdfPage(i);
+        }
+    }
+
+    function updatePdfNav() {
+        const pageInput = document.getElementById('pdf-page-input');
+        if (pageInput) pageInput.value = currentPage;
+        const totalSpan = document.getElementById('pdf-total-pages');
+        if (totalSpan) totalSpan.textContent = totalPages > 0 ? `${totalPages}` : '—';
+        document.getElementById('pdf-prev').disabled = currentPage <= 1;
+        document.getElementById('pdf-next').disabled = currentPage >= totalPages;
+        document.getElementById('pdf-zoom-level').textContent = Math.round(pdfScale * 100) + '%';
+    }
+
+    function pdfGoToPage(num) {
+        if (num < 1 || num > totalPages) return;
+        currentPage = num;
+        const viewport = document.getElementById('pdf-viewport');
+        const el = viewport.querySelector(`[data-page="${num}"]`);
+        if (el) {
+            viewport.scrollTo({ top: el.offsetTop, behavior: 'smooth' });
+        }
+        updatePdfNav();
+    }
+
+    function pdfGoPrev() { pdfGoToPage(currentPage - 1); }
+    function pdfGoNext() { pdfGoToPage(currentPage + 1); }
+
+    function pdfZoomIn() {
+        pdfScale = Math.min(pdfScale + 0.2, 3.0);
+        rerenderAllPdfPages();
+    }
+
+    function pdfZoomOut() {
+        pdfScale = Math.max(pdfScale - 0.2, 0.5);
+        rerenderAllPdfPages();
+    }
+
+    async function rerenderAllPdfPages() {
+        const viewport = document.getElementById('pdf-viewport');
+        // Save scroll position relative to current page BEFORE clearing
+        const curPageEl = viewport.querySelector(`[data-page="${currentPage}"]`);
+        const offsetBefore = curPageEl ? (curPageEl.getBoundingClientRect().top - viewport.getBoundingClientRect().top) : 0;
+        const scrollBefore = viewport.scrollTop;
+
+        renderedPages.clear();
+
+        let phHeight = '800px';
+        let phWidth = '600px';
+        if (pdfDoc && totalPages > 0) {
+            const page1 = await pdfDoc.getPage(1);
+            const page1Vp = page1.getViewport({ scale: pdfScale });
+            phHeight = page1Vp.height + 'px';
+            phWidth = page1Vp.width + 'px';
+        }
+
+        Array.from(viewport.children).forEach(c => {
+            if (c.classList.contains('pdf-page-wrapper')) {
+                c.innerHTML = '';
+                delete c.dataset.rendering;
+                c.style.minHeight = phHeight;
+                c.style.width = phWidth;
+            }
+        });
+        updatePdfNav();
+
+        // Render current page immediately, then restore scroll
+        await renderPdfPage(currentPage);
+        const curPageElAfter = viewport.querySelector(`[data-page="${currentPage}"]`);
+        if (curPageElAfter) {
+            const offsetAfter = curPageElAfter.getBoundingClientRect().top - viewport.getBoundingClientRect().top;
+            viewport.scrollTop = scrollBefore + (offsetAfter - offsetBefore);
+        }
+    }
+
+    function exitPdfMode() {
+        isPdfMode = false;
+        pdfDoc = null;
+        currentPage = 1;
+        totalPages = 0;
+        renderedPages.clear();
+        document.getElementById('pdf-container').classList.remove('active');
+        document.getElementById('pdf-viewport').innerHTML = '';
+        document.getElementById('md-content').style.display = '';
+    }
+
+    function enterPdfMode() {
+        isPdfMode = true;
+        document.getElementById('md-content').style.display = 'none';
+        document.getElementById('pdf-container').classList.add('active');
+        // Reset viewer scroll to prevent jump
+        const viewer = document.getElementById('viewer-container');
+        viewer.scrollTop = 0;
+    }
+
+    // Detect current page from scroll position in PDF viewport
+    function detectCurrentPage() {
+        if (!isPdfMode) return;
+        const viewport = document.getElementById('pdf-viewport');
+        const wrappers = viewport.querySelectorAll('.pdf-page-wrapper');
+        const viewTop = viewport.scrollTop;
+        const viewHeight = viewport.clientHeight;
+        let closest = 1;
+        let closestDist = Infinity;
+        wrappers.forEach(w => {
+            const page = parseInt(w.dataset.page);
+            const rect = w.offsetTop;
+            const dist = Math.abs(rect - viewTop - viewHeight / 3);
+            if (dist < closestDist) {
+                closestDist = dist;
+                closest = page;
+            }
+        });
+        if (closest !== currentPage) {
+            currentPage = closest;
+            updatePdfNav();
+        }
+        // BUG 3 fix: removed lazyLoadVisiblePages() call — IntersectionObserver handles lazy loading
+    }
+
+    async function openDocument(filename) {
+        currentDocument = filename;
+        sessionStorage.setItem('libCurrentDoc', filename);
+        const contentDiv = document.getElementById('md-content');
+        const loader = document.getElementById('loader');
+        const pdfLoading = document.getElementById('pdf-loading');
+        const isPdf = filename.toLowerCase().endsWith('.pdf');
+
+        // Clean up previous state
+        if (isPdfMode) exitPdfMode();
+
+        if (isPdf) {
+            // ── PDF mode via PDF.js ──────────────────────────
+            loader.style.display = 'none';
+            pdfLoading.style.display = 'block';
+            contentDiv.style.display = 'none';
+            enterPdfMode();
+
+            try {
+                const url = `/books/${encodeURIComponent(filename)}`;
+                const loadingTask = pdfjsLib.getDocument(url);
+                pdfDoc = await loadingTask.promise;
+                totalPages = pdfDoc.numPages;
+                currentPage = 1;
+                renderedPages.clear();
+                updatePdfNav();
+                // Get page 1 size to size all placeholders perfectly (prevents scroll jumps)
+                let phHeight = '800px';
+                let phWidth = '600px';
+                if (totalPages > 0) {
+                    const page1 = await pdfDoc.getPage(1);
+                    const page1Vp = page1.getViewport({ scale: pdfScale });
+                    phHeight = page1Vp.height + 'px';
+                    phWidth = page1Vp.width + 'px';
+                }
+
+                // Create placeholders for all pages so scrollbar and jumps work properly
+                const viewport = document.getElementById('pdf-viewport');
+                Array.from(viewport.children).forEach(c => {
+                    if (c.id !== 'pdf-loading') c.remove();
+                });
+                for (let i = 1; i <= totalPages; i++) {
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'pdf-page-wrapper';
+                    wrapper.dataset.page = i;
+                    wrapper.style.minHeight = phHeight;
+                    wrapper.style.width = phWidth;
+                    wrapper.style.margin = '0 auto 20px auto';
+                    viewport.appendChild(wrapper);
+                }
+                // Set default selection color from theme or saved reader colors
+                const saved = JSON.parse(localStorage.getItem('readerColors'));
+                const theme = localStorage.getItem('marinTheme') || 'evil';
+                const defaultHl = saved ? saved.hl : (theme === 'standard' ? '#4db8a4' : '#e8192f');
+                viewport.style.setProperty('--selection-bg', defaultHl + '40');
+                // Start at page 1 without smooth scroll to avoid jump
+                currentPage = 1;
+                updatePdfNav();
+                viewport.scrollTop = 0;
+                // Apply saved reader colors to PDF
+                applyPdfReaderColors();
+            } catch (e) {
+                exitPdfMode();
+                contentDiv.innerHTML = `<div class="viewer-placeholder"><h2>Error</h2><p>${escapeHtml(String(e))}</p></div>`;
+                contentDiv.style.display = 'block';
+            } finally {
+                pdfLoading.style.display = 'none';
+            }
+        } else {
+            // ── Markdown mode (DOCX, TXT, MD) ────────────────
+            contentDiv.style.display = 'none';
+            loader.style.display = 'block';
+
+            try {
+                const res = await fetch(`/api/documents/${encodeURIComponent(filename)}/content`);
+                const data = await res.json();
+
+                if (data.error) {
+                    contentDiv.innerHTML = `<div class="viewer-placeholder"><h2>Error</h2><p>${escapeHtml(data.error)}</p></div>`;
+                } else {
+                    contentDiv.innerHTML = DOMPurify.sanitize(marked.parse(data.content || "Empty document."));
+                }
+            } catch (e) {
+                contentDiv.innerHTML = `<div class="viewer-placeholder"><h2>Error</h2><p>Failed to load document.</p></div>`;
+            } finally {
+                loader.style.display = 'none';
+                contentDiv.style.display = 'block';
+                applyMdReaderColors();
+            }
+        }
+    }
+
+    async function deleteBook(filename) {
+        if (!confirm(`Delete "${filename}"? This cannot be undone.`)) return;
+        try {
+            const res = await fetch(`/api/documents/${encodeURIComponent(filename)}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (data.error) {
+                alert(data.error);
+            } else {
+                loadDocuments();
+                if (isPdfMode) exitPdfMode();
+                document.getElementById('md-content').innerHTML = '<div class="viewer-placeholder"><h2>Select a Document</h2><p>Choose a book from the left panel to read.</p></div>';
+                document.getElementById('md-content').style.display = 'block';
+            }
+        } catch (e) {
+            alert('Failed to delete file.');
+        }
+    }
+
+    // Highlight to comment (works for both markdown and PDF text layers)
+    const commentBtn = document.getElementById('comment-btn');
+    let selectedText = "";
+
+    function handleTextSelection(e) {
+        const selection = window.getSelection();
+        selectedText = selection.toString().trim();
+        if (selectedText.length > 0 && currentDocument) {
+            commentBtn.style.display = 'block';
+            commentBtn.style.left = `${e.pageX + 10}px`;
+            commentBtn.style.top = `${e.pageY - 30}px`;
+        } else {
+            commentBtn.style.display = 'none';
+        }
+    }
+
+    document.getElementById('md-content').addEventListener('mouseup', handleTextSelection);
+    document.getElementById('pdf-viewport').addEventListener('mouseup', handleTextSelection);
+
+    document.addEventListener('mousedown', (e) => {
+        if (e.target.id !== 'comment-btn') commentBtn.style.display = 'none';
+    });
+
+    commentBtn.addEventListener('click', () => {
+        if (selectedText && currentDocument) {
+            const input = document.getElementById('msg-input');
+            const pageHint = isPdfMode ? ` (page ${currentPage})` : '';
+            input.value = `In "${currentDocument}"${pageHint}, explain this:\n"${selectedText}"`;
+            commentBtn.style.display = 'none';
+            input.focus();
+        }
+    });
+
+    // ── Library tools panel ──────────────────────────────────
+    function toggleLibTools() {
+        const panel = document.getElementById('lib-tools-panel');
+        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    }
+
+    async function libAnalyzeRepo() {
+        const url = document.getElementById('lib-repo-url').value.trim();
+        if (!url) return;
+        document.getElementById('lib-repo-result').innerText = 'Analyzing...';
+        try {
+            const res = await fetch('/api/tools/analyze_link', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: url })
+            });
+            const data = await res.json();
+            if (data.error) {
+                document.getElementById('lib-repo-result').innerText = data.error;
+            } else {
+                document.getElementById('lib-repo-result').innerText = 'Done!';
+                document.getElementById('lib-repo-url').value = '';
+                // Pass tool context to avoid double execution
+                sendToolMessage(`Analyze this link for me: ${url}`, data.message);
+            }
+        } catch (err) {
+            document.getElementById('lib-repo-result').innerText = 'Failed.';
+        }
+    }
+
+    async function libGenQuiz() {
+        const topic = document.getElementById('lib-quiz-topic').value.trim();
+        if (!topic) return;
+        document.getElementById('lib-quiz-result').innerText = 'Generating...';
+        try {
+            const res = await fetch('/api/tools/quiz', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ topic: topic, num_questions: 5 })
+            });
+            const data = await res.json();
+            if (data.error) {
+                document.getElementById('lib-quiz-result').innerText = data.error;
+            } else {
+                // BUG 2 fix: render actual quiz HTML
+                document.getElementById('lib-quiz-result').innerHTML = data.quiz;
+                document.getElementById('lib-quiz-topic').value = '';
+                // Save context to history so Marin can see it later, but DON'T trigger her immediately
+                saveToolContext('quiz', `Quiz on ${topic}: generated\n\n${data.quiz}`);
+            }
+        } catch (err) {
+            document.getElementById('lib-quiz-result').innerText = 'Failed.';
+        }
+    }
+
+    async function libTranslate() {
+        const text = document.getElementById('lib-translate-text').value.trim();
+        const lang = document.getElementById('lib-translate-lang').value;
+        if (!text) return;
+        document.getElementById('lib-translate-result').innerText = 'Translating...';
+        try {
+            const res = await fetch('/api/tools/translate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: text, to: lang })
+            });
+            const data = await res.json();
+            if (data.error) {
+                document.getElementById('lib-translate-result').innerText = data.error;
+            } else {
+                document.getElementById('lib-translate-result').innerText = data.message;
+                document.getElementById('lib-translate-text').value = '';
+                // Save context to history
+                saveToolContext('translate', `Translated "${text}" to ${lang}: ${data.message}`);
+            }
+        } catch (err) {
+            document.getElementById('lib-translate-result').innerText = 'Failed.';
+        }
+    }
+
+    async function libWebSearch() {
+        const query = document.getElementById('lib-search-query').value.trim();
+        if (!query) return;
+        document.getElementById('lib-search-result').innerText = 'Searching...';
+        try {
+            const res = await fetch('/api/tools/search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query: query })
+            });
+            const data = await res.json();
+            if (data.error) {
+                document.getElementById('lib-search-result').innerText = data.error;
+            } else {
+                const text = data.results || 'No results.';
+                document.getElementById('lib-search-result').innerText = text;
+                document.getElementById('lib-search-query').value = '';
+                // Save context to history
+                saveToolContext('web_search', `Web Search for "${query}":\n${text}`);
+            }
+        } catch (err) {
+            document.getElementById('lib-search-result').innerText = 'Failed.';
+        }
+    }
+
+    async function libDownloadPdf() {
+        const url = document.getElementById('lib-pdf-url').value.trim();
+        if (!url) return;
+        document.getElementById('lib-pdf-result').innerText = 'Downloading...';
+        try {
+            const res = await fetch('/api/tools/download_pdf', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: url })
+            });
+            const data = await res.json();
+            if (data.error) {
+                document.getElementById('lib-pdf-result').innerText = data.error;
+            } else {
+                document.getElementById('lib-pdf-result').innerText = data.message || 'Downloaded!';
+                document.getElementById('lib-pdf-url').value = '';
+                loadDocuments();
+                // Save context to history
+                saveToolContext('pdf_download', `Downloaded PDF: ${url}\n${data.message || ''}`);
+            }
+        } catch (err) {
+            document.getElementById('lib-pdf-result').innerText = 'Failed.';
+        }
+    }
+
+    // Chat
+    const chat = document.getElementById('chat');
+    const form = document.getElementById('msg-form');
+    const input = document.getElementById('msg-input');
+
+    // ── Depth cycling ──────────────────────────────────────────
+    const DEPTHS = ['standard', 'deep', 'exhaustive'];
+    let depthIdx = 0;
+    let currentDepth = 'standard';
+    function libCycleDepth() {
+        depthIdx = (depthIdx + 1) % DEPTHS.length;
+        currentDepth = DEPTHS[depthIdx];
+        document.getElementById('lib-depth-btn').textContent = `depth: ${currentDepth}`;
+    }
+
+    // Send a tool result message to Marin so she responds about it
+    async function sendToolMessage(text, toolContext = null) {
+        addMessage('user', text);
+        const aiMsg = addMessage('ai', '<span class="typing-dots"><span>.</span><span>.</span><span>.</span></span>');
+        const bubble = aiMsg.querySelector('.bubble');
+        try {
+            const formData = new FormData();
+            formData.append('message', text);
+            formData.append('theme', localStorage.getItem('marinTheme') || 'evil');
+            formData.append('document', currentDocument || '');
+            if (toolContext) {
+                formData.append('tool_context', toolContext);
+            }
+            const res = await fetch('/api/chat', { method: 'POST', body: formData });
+            // Bug 3 fix: check HTTP status before reading body
+            if (!res.ok) {
+                bubble.innerHTML = `<em>Error ${res.status}: ${res.statusText}</em>`;
+                chat.scrollTop = chat.scrollHeight;
+                return;
+            }
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            let reply = '';
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                const chunk = decoder.decode(value, { stream: true });
+                if (chunk.includes('__VIBE__')) continue;
+                if (chunk.includes('__STRUCTURED__')) continue;
+                reply += chunk;
+                // Bug 1 fix: use .bubble (not .msg-text)
+                // Bug 2 fix: use DOMPurify.sanitize + marked.parse (not undefined formatReply)
+                bubble.innerHTML = DOMPurify.sanitize(marked.parse(reply));
+            }
+            renderMath(aiMsg);
+        } catch (e) {
+            // Bug 1 fix: use .bubble selector here too
+            bubble.innerHTML = `<em>Failed: ${escapeHtml(String(e))}</em>`;
+        }
+        chat.scrollTop = chat.scrollHeight;
+    }
+
+    // ── Image attach ───────────────────────────────────────────
+    let attachedImage = null;
+    function libHandleAttach(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        attachedImage = file;
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            document.getElementById('lib-attach-preview').innerHTML =
+                `<img src="${ev.target.result}" alt="attached">`;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function renderMath(el) {
+        if (typeof renderMathInElement === 'function') {
+            renderMathInElement(el, {
+                delimiters: [
+                    { left: '$$', right: '$$', display: true },
+                    { left: '$', right: '$', display: false },
+                    { left: '\\(', right: '\\)', display: false },
+                    { left: '\\[', right: '\\]', display: true }
+                ],
+                throwOnError: false
+            });
+        }
+    }
+
+    async function renderPlayground(blueprint, container) {
+        const wrap = document.createElement('div');
+        wrap.className = 'playground-wrap';
+        wrap.innerHTML = `
+            <div class="playground-header">
+                <span>${escapeHtml(blueprint.title || 'Interactive Widget')}</span>
+                <button onclick="this.closest('.playground-wrap').querySelector('.playground-frame').srcdoc='';this.textContent='Cleared'">Reset</button>
+            </div>
+            <div class="playground-loading">Building ${escapeHtml(blueprint.title || 'widget')}...</div>
+        `;
+        container.appendChild(wrap);
+        try {
+            const res = await fetch('/api/playground/build', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(blueprint)
+            });
+            const data = await res.json();
+            const loading = wrap.querySelector('.playground-loading');
+            if (data.html) {
+                const iframe = document.createElement('iframe');
+                iframe.className = 'playground-frame';
+                iframe.sandbox = 'allow-scripts allow-same-origin';
+                iframe.srcdoc = data.html;
+                loading.replaceWith(iframe);
+            } else {
+                loading.textContent = 'Failed to build widget.';
+            }
+        } catch (e) {
+            wrap.querySelector('.playground-loading').textContent = 'Error: ' + e.message;
+        }
+        chat.scrollTop = chat.scrollHeight;
+    }
+
+    function addMessage(role, content, replyTo = null) {
+        const div = document.createElement('div');
+        div.className = `msg ${role}`;
+        let inner = '';
+        if (role === 'user') {
+            inner += userAvatar ? `<div class="avatar"><img src="${userAvatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" onerror="this.parentNode.textContent='U'"></div>` : `<div class="avatar">U</div>`;
+        }
+        if (role === 'ai') {
+            inner += `<div class="avatar"><img src="${marinAvatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" onerror="this.parentNode.textContent='M'"></div>`;
+        }
+        let html = '';
+        if (role === 'user') {
+            html = escapeHtml(content || '').replace(/\n/g, '<br>');
+        } else {
+            try { html = DOMPurify.sanitize(marked.parse(content || '')); } catch {}
+            if (!html || html.trim() === '' || html.trim() === '<p>undefined</p>') {
+                html = escapeHtml(content || '').replace(/\n/g, '<br>');
+            }
+        }
+        let bubbleContent = `<div class="bubble">`;
+        if (replyTo) {
+            const rqRole = replyTo.role === 'ai' ? 'Marin' : 'You';
+            const rqText = replyTo.text.length > 80 ? replyTo.text.substring(0, 80) + '…' : replyTo.text;
+            bubbleContent += `<div class="reply-quote"><span class="rq-role">${rqRole}</span> ${escapeHtml(rqText)}</div>`;
+        }
+        bubbleContent += `${html}</div>`;
+        inner += bubbleContent;
+        div.innerHTML = inner;
+
+        // Store text for context menu
+        div.dataset.text = content || '';
+        div.dataset.role = role;
+
+        renderMath(div);
+        chat.appendChild(div);
+        chat.scrollTop = chat.scrollHeight;
+        return div;
+    }
+
+    // ── Context menu + reply ──
+    const ctxMenu = document.getElementById('ctx-menu');
+    let ctxTarget = null;
+
+    chat.addEventListener('contextmenu', (e) => {
+        const msg = e.target.closest('.msg');
+        if (!msg) return;
+        e.preventDefault();
+        ctxTarget = { role: msg.dataset.role, text: msg.dataset.text };
+        ctxMenu.style.left = e.clientX + 'px';
+        ctxMenu.style.top = e.clientY + 'px';
+        ctxMenu.classList.add('open');
+    });
+
+    document.addEventListener('click', () => ctxMenu.classList.remove('open'));
+
+    function replyToMessage() {
+        if (!ctxTarget) return;
+        document.getElementById('rp-text').textContent = ctxTarget.text.substring(0, 100) || '…';
+        document.querySelector('#reply-preview .rp-role').textContent =
+            `Replying to ${ctxTarget.role === 'ai' ? 'Marin' : 'You'}`;
+        replyContext = { role: ctxTarget.role, text: ctxTarget.text };
+        document.getElementById('reply-preview').classList.add('open');
+    }
+
+    function cancelReply() {
+        replyContext = null;
+        document.getElementById('reply-preview').classList.remove('open');
+    }
+
+    form.onsubmit = async (e) => {
+        e.preventDefault();
+        const text = input.value.trim();
+        if (!text && !attachedImage) return;
+        const savedReply = replyContext;
+        addMessage('user', text, savedReply);
+        input.value = '';
+        cancelReply();
+
+        let msgToSend = text;
+        if (savedReply) {
+            const rpRole = savedReply.role === 'ai' ? 'Marin' : 'You';
+            msgToSend = `[Replying to ${rpRole}: "${savedReply.text.substring(0, 120)}"] ${text}`;
+        }
+
+        const marinDiv = addMessage('ai', 'Thinking...');
+        const contentSpan = marinDiv.querySelector('.bubble');
+
+        try {
+            const formData = new FormData();
+            formData.append('message', msgToSend);
+            formData.append('theme', localStorage.getItem('marinTheme') || 'evil');
+            if (attachedImage) {
+                formData.append('image', attachedImage);
+            }
+            // Send document + page context for page-aware responses
+            if (currentDocument) {
+                formData.append('document', currentDocument);
+                formData.append('page', isPdfMode ? String(currentPage) : '0');
+            }
+            const response = await fetch('/api/chat', { method: 'POST', body: formData });
+            // BUG 5 fix: check HTTP status before reading body
+            if (!response.ok) {
+                contentSpan.innerHTML = `<em>Error ${response.status}: ${response.statusText}</em>`;
+                chat.scrollTop = chat.scrollHeight;
+                return;
+            }
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            contentSpan.innerHTML = '';
+            let full = '';
+
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+                let chunk = decoder.decode(value);
+                full += chunk;
+
+                let display = full;
+                if (display.includes('__VIBE__')) display = display.replace(/__VIBE__\w+/g, '');
+                // Playground FIRST — before structured
+                if (display.includes('__PLAYGROUND__')) {
+                    try {
+                        const pgPart = display.split('__PLAYGROUND__')[1].split('\n')[0].trim();
+                        const pgData = JSON.parse(pgPart);
+                        display = display.split('__PLAYGROUND__')[0];
+                        renderPlayground(pgData, contentSpan.closest('.bubble') || contentSpan.parentElement);
+                    } catch {}
+                }
+                if (display.includes('__STRUCTURED__')) {
+                    try {
+                        const jsonPart = display.split('__STRUCTURED__')[1];
+                        const parsed = JSON.parse(jsonPart);
+                        if (parsed.content) display = parsed.content;
+                    } catch {}
+                }
+                if (display.includes('__IMAGE__')) display = display.replace(/__IMAGE__\S*/g, '');
+
+                try {
+                    contentSpan.innerHTML = DOMPurify.sanitize(marked.parse(display));
+                } catch {
+                    contentSpan.innerHTML = DOMPurify.sanitize(display.replace(/\n/g, '<br>'));
+                }
+                renderMath(contentSpan);
+                chat.scrollTop = chat.scrollHeight;
+            }
+        } catch (err) {
+            contentSpan.innerHTML += `<br><span style="color:var(--danger)">Error: ${escapeHtml(String(err))}</span>`;
+        }
+        attachedImage = null;
+        document.getElementById('lib-attach-preview').innerHTML = '';
+    };
+
+    // ── Reading Color Customizer ──────────────────────────────
+    const READER_PRESETS = {
+        evil:     { bg: '#0d0608', fg: '#f0e8e0', hl: '#e8192f' },
+        warm:     { bg: '#2b1f14', fg: '#e8dcc8', hl: '#c9964c' },
+        forest:   { bg: '#0a1a0f', fg: '#d0e8d0', hl: '#4db8a4' },
+        ocean:    { bg: '#0a1018', fg: '#d0dce8', hl: '#4a90d9' },
+        lavender: { bg: '#140e1c', fg: '#ddd0e8', hl: '#9b6dcc' },
+        paper:    { bg: '#f5f0e8', fg: '#2c2420', hl: '#8b4513' },
+    };
+
+    function toggleReaderCfg() {
+        document.getElementById('reader-cfg-panel').classList.toggle('open');
+    }
+
+    function applyReaderColors() {
+        const bg = document.getElementById('rc-bg').value;
+        const fg = document.getElementById('rc-fg').value;
+        const hl = document.getElementById('rc-hl').value;
+        localStorage.setItem('readerColors', JSON.stringify({ bg, fg, hl }));
+        if (isPdfMode) {
+            applyPdfReaderColors();
+        } else {
+            applyMdReaderColors();
+        }
+        document.querySelectorAll('.rc-preset').forEach(p => p.classList.remove('active'));
+    }
+
+    function applyMdReaderColors() {
+        const saved = JSON.parse(localStorage.getItem('readerColors'));
+        if (!saved) return;
+        const viewer = document.getElementById('viewer-container');
+        const mdBody = document.getElementById('md-content');
+        viewer.style.background = saved.bg;
+        if (mdBody) mdBody.style.color = saved.fg;
+        document.querySelectorAll('#md-content h1, #md-content h2, #md-content h3').forEach(h => h.style.color = saved.hl);
+        document.querySelectorAll('#md-content a').forEach(a => a.style.color = saved.hl);
+        document.querySelectorAll('#md-content blockquote').forEach(b => b.style.borderLeftColor = saved.hl);
+    }
+
+    function applyPdfReaderColors() {
+        const saved = JSON.parse(localStorage.getItem('readerColors'));
+        if (!saved) return;
+        const viewer = document.getElementById('viewer-container');
+        const viewport = document.getElementById('pdf-viewport');
+        // Save scroll position before style changes cause reflow
+        const scrollY = viewport ? viewport.scrollTop : 0;
+        // Apply bg to viewer and viewport
+        viewer.style.background = saved.bg;
+        if (viewport) viewport.style.background = saved.bg;
+        // Set selection color at viewport root so it cascades to all text layers
+        if (viewport) viewport.style.setProperty('--selection-bg', saved.hl + '40');
+        // Apply CSS filter to PDF canvas wrappers for dark/light inversion
+        const wrappers = document.querySelectorAll('.pdf-page-wrapper');
+        wrappers.forEach(w => {
+            const canvas = w.querySelector('canvas');
+            if (canvas) {
+                const r = parseInt(saved.bg.slice(1,3), 16);
+                const g = parseInt(saved.bg.slice(3,5), 16);
+                const b = parseInt(saved.bg.slice(5,7), 16);
+                const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+                if (brightness < 80) {
+                    canvas.style.filter = 'invert(0.88) hue-rotate(180deg)';
+                } else {
+                    canvas.style.filter = '';
+                }
+            }
+        });
+        // Restore scroll position after reflow
+        if (viewport) viewport.scrollTop = scrollY;
+    }
+
+    function setReaderPreset(name) {
+        const p = READER_PRESETS[name];
+        if (!p) return;
+        document.getElementById('rc-bg').value = p.bg;
+        document.getElementById('rc-fg').value = p.fg;
+        document.getElementById('rc-hl').value = p.hl;
+        applyReaderColors();
+        document.querySelectorAll('.rc-preset').forEach(btn => {
+            btn.classList.toggle('active', btn.textContent.toLowerCase().includes(name));
+        });
+    }
+
+    function resetReaderColors() {
+        localStorage.removeItem('readerColors');
+        const theme = localStorage.getItem('marinTheme') || 'evil';
+        const def = READER_PRESETS[theme === 'standard' ? 'warm' : 'evil'];
+        document.getElementById('rc-bg').value = def.bg;
+        document.getElementById('rc-fg').value = def.fg;
+        document.getElementById('rc-hl').value = def.hl;
+        const viewer = document.getElementById('viewer-container');
+        viewer.style.background = '';
+        if (isPdfMode) {
+            const viewport = document.getElementById('pdf-viewport');
+            if (viewport) viewport.style.background = '';
+            document.querySelectorAll('.pdf-page-wrapper canvas').forEach(c => c.style.filter = '');
+        } else {
+            const mdBody = document.getElementById('md-content');
+            if (mdBody) mdBody.style.color = '';
+            document.querySelectorAll('#md-content h1, #md-content h2, #md-content h3').forEach(h => h.style.color = '');
+            document.querySelectorAll('#md-content a').forEach(a => a.style.color = '');
+            document.querySelectorAll('#md-content blockquote').forEach(b => b.style.borderLeftColor = '');
+        }
+        document.querySelectorAll('.rc-preset').forEach(p => p.classList.remove('active'));
+    }
+
+    (function loadReaderColors() {
+        try {
+            const saved = JSON.parse(localStorage.getItem('readerColors'));
+            if (saved) {
+                document.getElementById('rc-bg').value = saved.bg;
+                document.getElementById('rc-fg').value = saved.fg;
+                document.getElementById('rc-hl').value = saved.hl;
+                const viewer = document.getElementById('viewer-container');
+                viewer.style.background = saved.bg;
+                document.querySelectorAll('.rc-preset').forEach(btn => {
+                    for (const [name, preset] of Object.entries(READER_PRESETS)) {
+                        if (preset.bg === saved.bg && preset.fg === saved.fg && preset.hl === saved.hl) {
+                            btn.classList.toggle('active', btn.textContent.toLowerCase().includes(name));
+                        }
+                    }
+                });
+            }
+        } catch {}
+    })();
+
+    // Close reader config when clicking outside
+    document.addEventListener('click', (e) => {
+        const panel = document.getElementById('reader-cfg-panel');
+        const btn = document.querySelector('.reader-cfg-btn');
+        if (panel && !panel.contains(e.target) && !btn.contains(e.target)) {
+            panel.classList.remove('open');
+        }
+    });
+
+    // ── PDF scroll → page detection ──────────────────────────
+    (function initPdfScrollDetection() {
+        const vp = document.getElementById('pdf-viewport');
+        let scrollTimer = null;
+        vp.addEventListener('scroll', () => {
+            if (scrollTimer) clearTimeout(scrollTimer);
+            scrollTimer = setTimeout(detectCurrentPage, 100);
+        });
+        // Render pages near viewport via IntersectionObserver
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting && isPdfMode) {
+                    const page = parseInt(entry.target.dataset.page);
+                    if (page && !renderedPages.has(page)) {
+                        renderPdfPage(page);
+                    }
+                }
+            });
+        }, { root: vp, rootMargin: '400px' });
+        // Observe future page wrappers via MutationObserver
+        const mo = new MutationObserver((mutations) => {
+            mutations.forEach(m => {
+                m.addedNodes.forEach(node => {
+                    if (node.classList && node.classList.contains('pdf-page-wrapper')) {
+                        observer.observe(node);
+                    }
+                });
+            });
+        });
+        mo.observe(vp, { childList: true });
+    })();
+
+    // ── PDF page input Enter key handler ─────────────────────
+    (function initPageInput() {
+        const input = document.getElementById('pdf-page-input');
+        if (!input) return;
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const val = parseInt(input.value);
+                if (!isNaN(val)) pdfGoToPage(val);
+            }
+        });
+        input.addEventListener('blur', () => {
+            input.value = currentPage;
+        });
+    })();
+
+    loadDocuments();
+    startRagPolling();
+
+    // ── Load chat history ─────────────────────────────────────
+    async function loadChatHistory() {
+        try {
+            const res = await fetch('/api/chat/history');
+            const data = await res.json();
+            if (data.messages && data.messages.length > 0) {
+                data.messages.forEach(msg => {
+                    const role = (msg.role === 'assistant' || msg.role === 'marin') ? 'ai' : 'user';
+                    let content = msg.content || '';
+                    // Skip tool context messages — they're for Marin, not displayed in chat
+                    if (content.startsWith('[TOOL:') || content.startsWith('[USER MANUALLY EXECUTED TOOL]')) return;
+                    if (content.includes('__VIBE__')) content = content.replace(/__VIBE__\w+/g, '').trim();
+                    // Playground FIRST
+                    if (content.includes('__PLAYGROUND__')) {
+                        try {
+                            const pgPart = content.split('__PLAYGROUND__')[1].split('\n')[0].trim();
+                            const pgData = JSON.parse(pgPart);
+                            content = content.split('__PLAYGROUND__')[0];
+                            setTimeout(() => renderPlayground(pgData, null), 100);
+                        } catch {}
+                    }
+                    if (content.includes('__STRUCTURED__')) {
+                        try {
+                            const jsonPart = content.split('__STRUCTURED__')[1];
+                            const parsed = JSON.parse(jsonPart);
+                            if (parsed.content) content = parsed.content;
+                        } catch {}
+                    }
+                    if (content.includes('__IMAGE__')) content = content.replace(/__IMAGE__\S*/g, '').trim();
+                    if (!content.trim()) return;
+                    addMessage(role, content);
+                });
+            }
+        } catch (e) {
+            console.error('Failed to load history:', e);
+        }
+    }
+    loadChatHistory();
+
+    // ── Sidebar hover trigger ──────────────────────────────────
+    const sidebarTrigger = document.getElementById('sidebar-trigger');
+    const docSidebar = document.getElementById('doc-list');
+    sidebarTrigger.addEventListener('mouseenter', () => docSidebar.classList.add('pinned'));
+    docSidebar.addEventListener('mouseleave', () => docSidebar.classList.remove('pinned'));
+
+    // ── Resize handle for chat panel ──────────────────────────
+    const resizeHandle = document.getElementById('resize-handle');
+    const chatPanel = document.querySelector('.chat-panel');
+    let isResizing = false;
+
+    resizeHandle.addEventListener('mousedown', (e) => {
+        isResizing = true;
+        resizeHandle.classList.add('active');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isResizing) return;
+        const container = document.querySelector('.container');
+        const rect = container.getBoundingClientRect();
+        const newWidth = rect.right - e.clientX;
+        const clamped = Math.min(Math.max(newWidth, 300), window.innerWidth * 0.5);
+        chatPanel.style.width = clamped + 'px';
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (isResizing) {
+            isResizing = false;
+            resizeHandle.classList.remove('active');
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+        }
+    });
+
+    // ── Theme (Sweet / Evil) ──────────────────────────────────
+    function libApplyTheme() {
+        const theme = localStorage.getItem('marinTheme') || 'evil';
+        const btn = document.getElementById('lib-theme-btn');
+        const chatHeader = document.querySelector('.chat-header');
+        const logoSub = document.getElementById('lib-logo-sub');
+        if (theme === 'standard') {
+            document.documentElement.setAttribute('data-theme', 'standard');
+            if (btn) btn.textContent = 'Evil Mode';
+            if (chatHeader) chatHeader.textContent = 'Chat with Marin HS-02';
+            if (logoSub) logoSub.textContent = 'MARIN HS-02';
+            document.title = 'Marin HS-02 \u2014 Library';
+            marinAvatar = '/static/images/marin.png';
+            document.querySelectorAll('img').forEach(img => {
+                if (img.src.includes('marin_evil.png')) img.src = '/static/images/marin.png';
+            });
+        } else {
+            document.documentElement.removeAttribute('data-theme');
+            if (btn) btn.textContent = 'Sweet Mode';
+            if (chatHeader) chatHeader.textContent = 'Chat with Marin HS-04';
+            if (logoSub) logoSub.textContent = 'MARIN HS-04';
+            document.title = 'Marin HS-04 \u2014 Library';
+            marinAvatar = '/static/images/marin_evil.png';
+            document.querySelectorAll('img').forEach(img => {
+                if (img.src.includes('marin.png') && !img.src.includes('marin_evil.png')) img.src = '/static/images/marin_evil.png';
+            });
+        }
+    }
+    function libToggleTheme() {
+        const current = localStorage.getItem('marinTheme') || 'evil';
+        localStorage.setItem('marinTheme', current === 'evil' ? 'standard' : 'evil');
+        libApplyTheme();
+    }
+    libApplyTheme();
+</script>
+
+</body>
+</html>

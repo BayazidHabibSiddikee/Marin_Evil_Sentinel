@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marin HS-02 — Onboarding</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0a0c;
+            --accent: #4db8a4;
+            --text: #e8ddd0;
+            --dim: #8a7d72;
+            --panel: #141419;
+            --border: #2d8a78;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Rajdhani', sans-serif;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .form-container {
+            width: 100%;
+            max-width: 500px;
+            background: var(--panel);
+            border: 1px solid rgba(77, 184, 164, 0.3);
+            padding: 30px;
+            border-radius: 4px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+
+        h2 {
+            font-family: 'Cinzel', serif;
+            color: var(--accent);
+            text-align: center;
+            margin-bottom: 30px;
+            letter-spacing: 2px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--dim);
+            font-weight: 500;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+        }
+
+        input {
+            width: 100%;
+            background: #000;
+            border: 1px solid var(--border);
+            padding: 12px;
+            color: #fff;
+            border-radius: 2px;
+            font-family: inherit;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 10px rgba(77, 184, 164, 0.2);
+        }
+
+        .btn-submit {
+            width: 100%;
+            background: var(--accent);
+            color: #000;
+            padding: 15px;
+            border: none;
+            border-radius: 4px;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-top: 20px;
+            transition: all 0.3s;
+        }
+
+        .btn-submit:hover {
+            background: #5db882;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(77, 184, 164, 0.4);
+        }
+
+        .help-text {
+            font-size: 0.75rem;
+            color: var(--dim);
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <h2>System Configuration</h2>
+        <p style="text-align: center; color: var(--dim); margin-bottom: 30px;">Welcome, {{ username }}. Let's initialize your Marin profile.</p>
+        
+        <form id="onboardingForm">
+            <div class="form-group">
+                <label>Your Name</label>
+                <input type="text" id="user_name" value="Bayazid" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Location</label>
+                <input type="text" id="location" value="Rajshahi" required>
+            </div>
+
+            <div class="form-group">
+                <label>API Key(s) (OpenRouter, OpenAI, Gemini)</label>
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <input type="password" id="new_api_key" placeholder="sk-..., AIza..." style="flex: 1;">
+                    <button type="button" class="btn-submit" onclick="addApiKey()" style="width: auto; padding: 0 15px; margin: 0;">Add</button>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <select id="api_keys_dropdown" style="flex: 1; padding: 10px; border-radius: 2px; border: 1px solid var(--border); background: #000; color: #fff; font-family: inherit; font-size: 1rem;">
+                        <option value="" disabled selected>No keys added yet</option>
+                    </select>
+                    <button type="button" class="btn-submit" onclick="removeApiKey()" style="background: var(--dim); width: auto; padding: 0 15px; margin: 0; color: #fff;">Remove</button>
+                </div>
+                <div class="help-text">Marin will randomly pick active keys and automatically fallback if they hit rate limits.</div>
+                <input type="hidden" id="openrouter_key" name="openrouter_key">
+            </div>
+
+            <div class="form-group">
+                <label>Telegram API Key (Optional)</label>
+                <input type="password" id="telegram_key" placeholder="bot token">
+            </div>
+            
+            <div class="form-group">
+                <label>Sender Email (Optional)</label>
+                <input type="email" id="sender_email" placeholder="your.email@gmail.com">
+            </div>
+
+            <div class="form-group">
+                <label>Email App Password (Optional)</label>
+                <input type="password" id="email_pass" placeholder="16-char app password">
+            </div>
+            
+            <div class="form-group">
+                <label>Image Gen Model (OpenRouter)</label>
+                <input type="text" id="image_model" value="stabilityai/stable-diffusion-xl-beta-v2-2-2">
+            </div>
+
+            <button type="submit" class="btn-submit">Complete Setup</button>
+            <button type="button" class="btn-submit" style="background:#444; margin-top:10px" onclick="skipSetup()">Skip (Use Defaults)</button>
+        </form>
+    </div>
+    
+    <script>
+        async function submitSettings(data) {
+            const res = await fetch('/api/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            if (res.ok) window.location.href = "/";
+        }
+        
+        let apiKeys = [];
+        
+        async function loadSettings() {
+            try {
+                const res = await fetch('/api/settings');
+                if (res.ok) {
+                    const data = await res.json();
+                    
+                    if (data.user_name) document.getElementById("user_name").value = data.user_name;
+                    if (data.location) document.getElementById("location").value = data.location;
+                    if (data.telegram_key) document.getElementById("telegram_key").value = data.telegram_key;
+                    if (data.sender_email) document.getElementById("sender_email").value = data.sender_email;
+                    if (data.email_pass) document.getElementById("email_pass").value = data.email_pass;
+                    if (data.image_model) document.getElementById("image_model").value = data.image_model;
+
+                    if (data.openrouter_key) {
+                        apiKeys = data.openrouter_key.split(",").map(k => k.trim()).filter(k => k);
+                        renderApiKeys();
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to load settings", e);
+            }
+        }
+        
+        function addApiKey() {
+            const input = document.getElementById("new_api_key");
+            const val = input.value.trim();
+            if (val && !apiKeys.includes(val)) {
+                apiKeys.push(val);
+                input.value = "";
+                renderApiKeys();
+            }
+        }
+        
+        function removeApiKey() {
+            const select = document.getElementById("api_keys_dropdown");
+            if (select.value) {
+                apiKeys = apiKeys.filter(k => k !== select.value);
+                renderApiKeys();
+            }
+        }
+        
+        function renderApiKeys() {
+            const select = document.getElementById("api_keys_dropdown");
+            select.innerHTML = "";
+            if (apiKeys.length === 0) {
+                select.innerHTML = '<option value="" disabled selected>No keys added yet</option>';
+            } else {
+                apiKeys.forEach(k => {
+                    const opt = document.createElement("option");
+                    opt.value = k;
+                    opt.textContent = k.substring(0, 15) + "...";
+                    select.appendChild(opt);
+                });
+            }
+            document.getElementById("openrouter_key").value = apiKeys.join(",");
+        }
+
+        document.getElementById("onboardingForm").addEventListener("submit", (e) => {
+            e.preventDefault();
+            // If user typed a key but didn't click add, add it automatically
+            const pendingKey = document.getElementById("new_api_key").value.trim();
+            if (pendingKey && !apiKeys.includes(pendingKey)) {
+                apiKeys.push(pendingKey);
+                renderApiKeys();
+            }
+            
+            const data = {
+                user_name: document.getElementById("user_name").value,
+                location: document.getElementById("location").value,
+                openrouter_key: document.getElementById("openrouter_key").value,
+                telegram_key: document.getElementById("telegram_key").value,
+                sender_email: document.getElementById("sender_email").value,
+                email_pass: document.getElementById("email_pass").value,
+                image_model: document.getElementById("image_model").value
+            };
+            submitSettings(data);
+        });
+        
+        function skipSetup() {
+            submitSettings({
+                user_name: "Bayazid",
+                location: "Rajshahi"
+            });
+        }
+        
+        // Load on start
+        loadSettings();
+    </script>
+</body>
+</html>

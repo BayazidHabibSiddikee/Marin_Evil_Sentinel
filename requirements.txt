@@ -1,0 +1,73 @@
+fastapi
+uvicorn[standard]
+jinja2>=3.1.0
+python-multipart
+aiofiles
+httpx
+requests
+pydantic
+numpy
+
+# Database
+psycopg2-binary
+
+# LLM / LangChain
+langchain-core
+langchain-community
+langchain-openai
+langchain-huggingface
+langchain-text-splitters
+langgraph
+faiss-cpu
+
+# Document processing
+pypdf
+pymupdf
+pymupdf4llm
+pdf2image
+python-docx
+docx2txt
+mammoth
+openpyxl
+beautifulsoup4
+pytesseract
+
+# RAG quality
+rank-bm25
+
+# Translation / Speech
+deep-translator
+SpeechRecognition
+pyttsx3
+youtube-transcript-api
+
+# QR / Image
+qrcode
+Pillow
+
+# Code / Archive
+py7zr
+
+# Crypto / Finance (optional)
+# yfinance
+# matplotlib
+
+# Search (optional)
+# duckduckgo-search
+# geopy
+# folium
+
+# Office
+# pandas
+# pdfplumber
+fpdf2
+img2pdf
+pikepdf
+pdf2docx
+# python-pptx
+# PySide6
+# CPU-only torch (no CUDA bloat in Docker)
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
+sentence-transformers
+

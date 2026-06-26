@@ -1,0 +1,28 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+vibe_state.json
+
+# Virtual environments
+.venv/
+
+# Large files / data
+books/
+games/
+doc/
+faiss_db/
+storage/
+static/uploads/
+test/
+
+# IDE / misc
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
