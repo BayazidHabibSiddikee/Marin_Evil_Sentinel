@@ -79,7 +79,7 @@ She's designed to keep you focused, test your knowledge, and help you learn fast
 │  ┌──────────────┐  │            │   (FastAPI :5091)     │
 │  │ Preprocessor  │  │   HTTP     │  ┌────────────────┐  │
 │  │ (RAG+Page)   │  │────────────│  │ FAISS Index     │  │
-│  └──────┬───────┘  │            │  │ books/ + code/  │  │
+│  └──────┬───────┘  │            │  │ books/          │  │
 │  ┌──────▼───────┐  │            │  │ Hybrid Search   │  │
 │  │ Persona      │  │            │  └────────────────┘  │
 │  │ (Streaming)  │  │            └──────────────────────┘
@@ -148,7 +148,7 @@ Tools auto-send results to Marin so she responds about them in chat.
 
 ### RAG (Retrieval-Augmented Generation)
 
-- Drop files into `books/` or `code/` directories
+- Drop files into `books/` directory
 - Auto-indexed on startup and after each upload
 - Supports: PDF (with OCR fallback), DOCX, TXT, MD, PY, C/CPP/H
 - Hybrid search: FAISS vector similarity + BM25 keyword search + cross-encoder re-ranking
@@ -237,8 +237,6 @@ python3 main.py             # starts on :5090
 cp ~/Downloads/textbook.pdf books/
 cp ~/Notes/lecture-notes.docx books/
 
-# Source code projects
-cp -r ~/Projects/myproject code/
 ```
 
 Files are automatically indexed on server startup. To re-index after adding new files:
@@ -331,6 +329,7 @@ marin-kitaga wa/
 ├── config.py               # Shared constants — model names, paths, limits
 ├── database.py             # PostgreSQL interface — 6 tables
 ├── classifier.py           # Regex intent/vibe classifier
+├── llm_manager.py          # LLM Provider management, API validation & tool capability testing
 ├── proactive_engine.py     # Idle detection, SSE broadcast
 ├── rag_server.py           # FAISS RAG server (:5091)
 ├── langgraph_agent.py      # 3-node LangGraph pipeline
@@ -361,7 +360,7 @@ marin-kitaga wa/
 │   └── generated/          # AI-generated images
 │
 ├── books/                  # Study materials (PDFs, notes) — RAG indexed
-├── code/                   # Source code — RAG indexed
+
 ├── storage/
 │   └── faiss_db/           # FAISS index files
 │
