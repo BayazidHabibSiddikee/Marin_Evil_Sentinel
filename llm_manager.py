@@ -193,8 +193,6 @@ def _try_build_llm(model: str, key: str, base_url: str):
         openai_api_base=base_url,
         max_retries=1,
     )
-    # Lightweight probe — confirms the key+model is actually usable right now
-    llm.invoke([HumanMessage(content="hi")])
     return llm
 
 

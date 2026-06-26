@@ -991,7 +991,7 @@
         #comment-btn {
             position: fixed;
             display: none;
-            background: var(--teal);
+            background: greenyellow;
             color: #000;
             border: none;
             padding: 6px 12px;
@@ -1004,7 +1004,7 @@
         }
 
         #comment-btn:hover {
-            background: var(--teal-dim);
+            background: #9add23;
         }
 
         /* ── RESPONSIVE ──────────────────────────────────────────── */
@@ -2236,8 +2236,8 @@
             selectedText = selection.toString().trim();
             if (selectedText.length > 0 && currentDocument) {
                 commentBtn.style.display = 'block';
-                commentBtn.style.left = `${e.pageX + 10}px`;
-                commentBtn.style.top = `${e.pageY - 30}px`;
+                commentBtn.style.left = `${e.clientX + 10}px`;
+                commentBtn.style.top = `${e.clientY - 30}px`;
             } else {
                 commentBtn.style.display = 'none';
             }
