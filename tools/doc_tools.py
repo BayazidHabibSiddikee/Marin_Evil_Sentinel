@@ -132,37 +132,30 @@ def word_to_pdf(docx_path: str, pdf_path: str = None) -> str:
 #  Strategy 2: pymupdf text blocks → python-docx paragraphs
 #  Strategy 3: pypdf text extraction → python-docx (last resort)
 # ──────────────────────────────────────────────────────────────────────────────
+import re
+
+def sanitize_xml(text: str) -> str:
+    """Remove control characters that break DOCX XML."""
+    return re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]', '', text)
+
 def pdf_to_word(pdf_path: str, docx_path: str = None) -> str:
-    """Convert a PDF to .docx.  Returns the path of the created DOCX."""
+    """Convert a PDF to .docx. Returns the path of the created DOCX."""
     if docx_path is None:
         docx_path = os.path.splitext(pdf_path)[0] + ".docx"
 
-    # ── Primary: pdf2docx ────────────────────────────────────────────────────
-    try:
-        from pdf2docx import Converter
-        cv = Converter(pdf_path)
-        cv.convert(docx_path, start=0, end=None)
-        cv.close()
-        # Verify the output isn't empty
-        if os.path.exists(docx_path) and os.path.getsize(docx_path) > 1000:
-            return docx_path
-        print("[pdf_to_word] pdf2docx produced an empty/tiny file, trying fallback…")
-    except Exception as e:
-        print(f"[pdf_to_word] pdf2docx failed: {e}")
-
-    # ── Fallback 1: pymupdf block extraction → python-docx ──────────────────
+    # ── Primary: pymupdf block extraction → python-docx ───────────────────────
+    # Bypassing pdf2docx completely as it is prone to generating corrupt XML.
     try:
         import fitz
         from docx import Document
         from docx.shared import Pt
-        from docx.enum.text import WD_ALIGN_PARAGRAPH
 
         doc  = Document()
         pdf  = fitz.open(pdf_path)
 
         for page_num in range(len(pdf)):
             page   = pdf[page_num]
-            blocks = page.get_text("blocks")   # list of (x0,y0,x1,y1,text,…)
+            blocks = page.get_text("blocks")
 
             if page_num > 0:
                 doc.add_page_break()
@@ -174,6 +167,11 @@ def pdf_to_word(pdf_path: str, docx_path: str = None) -> str:
                 text = block[4].strip()
                 if not text:
                     continue
+                # Sanitize to prevent "Word found unreadable content" errors
+                text = sanitize_xml(text)
+                if not text:
+                    continue
+                    
                 para = doc.add_paragraph(text)
                 para.paragraph_format.space_after = Pt(4)
 
@@ -182,9 +180,9 @@ def pdf_to_word(pdf_path: str, docx_path: str = None) -> str:
         return docx_path
 
     except Exception as e:
-        print(f"[pdf_to_word] pymupdf fallback failed: {e}")
+        print(f"[pdf_to_word] pymupdf extraction failed: {e}")
 
-    # ── Fallback 2: pypdf plain text ─────────────────────────────────────────
+    # ── Fallback: pypdf plain text ───────────────────────────────────────────
     try:
         from docx import Document
         from pypdf import PdfReader
@@ -198,7 +196,9 @@ def pdf_to_word(pdf_path: str, docx_path: str = None) -> str:
                 doc.add_page_break()
             for line in text.splitlines():
                 if line.strip():
-                    doc.add_paragraph(line.strip())
+                    safe_line = sanitize_xml(line.strip())
+                    if safe_line:
+                        doc.add_paragraph(safe_line)
 
         doc.save(docx_path)
         return docx_path
