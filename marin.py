@@ -646,7 +646,9 @@ def structured_response(question: str, mode: str, user_name: str, rag_context: s
     llm, key, model = llm_info
     
     full_raw = ""
-    while True:
+    max_retries = 15
+    retry_count = 0
+    while retry_count < max_retries:
         try:
             for chunk in llm.stream([{"role": "user", "content": prompt}]):
                 piece = chunk.content
@@ -654,6 +656,7 @@ def structured_response(question: str, mode: str, user_name: str, rag_context: s
                     full_raw += piece
             break
         except Exception as e:
+            retry_count += 1
             if llm_manager.is_auth_error(e):
                 llm_manager.report_auth_error(key)
                 llm_info = llm_manager.get_best_llm()
@@ -675,6 +678,9 @@ def structured_response(question: str, mode: str, user_name: str, rag_context: s
             else:
                 yield f'{{"error": "{str(e)}"}}'
                 return
+    else:
+        yield '{"error": "All providers failed after multiple retries. Please check your API keys in Settings."}'
+        return
 
     parsed = _parse_sage_json(full_raw, mode)
     yield f"__STRUCTURED__{json.dumps(parsed, ensure_ascii=False)}"
@@ -785,7 +791,9 @@ async def response(prompt: str, user_vibe: str = "neutral",
 
     full_reply = ""
     first_chunk = True
-    while True:
+    max_retries = 15
+    retry_count = 0
+    while retry_count < max_retries:
         try:
             for chunk in _llm_instance.stream(messages):
                 piece = chunk.content
@@ -798,6 +806,7 @@ async def response(prompt: str, user_vibe: str = "neutral",
                     yield piece
             break
         except Exception as e:
+            retry_count += 1
             if llm_manager.is_auth_error(e):
                 llm_manager.report_auth_error(key)
                 print(f"[Fallback] Invalid API key on {model} ({e}). Retrying with next model...")
@@ -816,6 +825,10 @@ async def response(prompt: str, user_vibe: str = "neutral",
                 yield f"\n[System: All API keys/models exhausted or failed. Last error: {e}]"
                 return
             _llm_instance, key, model = llm_info
+
+    else:
+        yield "\n[System: All providers failed after multiple retries. Please check your API keys in Settings.]"
+        return
 
     # Clean full reply for history (strip signatures)
     clean_reply = clean_response(full_reply)

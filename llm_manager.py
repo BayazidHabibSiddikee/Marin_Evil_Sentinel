@@ -274,19 +274,23 @@ def get_best_llm(deep: bool = False):
         if result:
             return result
 
-    # ── Last resort: Ollama local ──────────────────────────────────────────────
-    print("[LLM] All providers exhausted — falling back to local Ollama")
-    try:
-        llm = ChatOpenAI(
-            model="marin:latest",
-            openai_api_key="ollama",
-            openai_api_base=OLLAMA_URL,
-            max_retries=2,
-        )
-        # Ollama doesn't need the probe (local, no auth)
-        return llm, "ollama", "marin:latest"
-    except Exception as e:
-        print(f"[LLM] Ollama also failed: {e}")
+    # ── Last resort: Ollama local (only if not rate-limited) ──────────────────
+    ollama_model = "marin:latest"
+    if not _is_rate_limited("ollama", ollama_model, limits, now):
+        print("[LLM] All providers exhausted — falling back to local Ollama")
+        try:
+            llm = ChatOpenAI(
+                model=ollama_model,
+                openai_api_key="ollama",
+                openai_api_base=OLLAMA_URL,
+                max_retries=2,
+            )
+            # Ollama doesn't need the probe (local, no auth)
+            return llm, "ollama", ollama_model
+        except Exception as e:
+            print(f"[LLM] Ollama also failed: {e}")
+    else:
+        print("[LLM] All providers including Ollama exhausted")
 
     return None
 
