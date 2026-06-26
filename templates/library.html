@@ -545,26 +545,24 @@
         }
 
         .pdf-text-layer ::selection {
-            background: rgba(173, 255, 47, 0.4) !important;
+            background: rgba(173, 255, 47, 1) !important;
             color: transparent !important;
         }
 
         .pdf-text-layer ::-moz-selection {
-            background: rgba(173, 255, 47, 0.4) !important;
+            background: rgba(173, 255, 47, 1) !important;
             color: transparent !important;
         }
 
         /* ── SELECTION HIGHLIGHT ────────────────────────── */
-        .viewer ::selection,
-        #md-content ::selection {
-            background: rgba(173, 255, 47, 0.4) !important;
-            color: inherit !important;
+        ::selection {
+            background: rgba(173, 255, 47, 1) !important;
+            color: #000 !important;
         }
 
-        .viewer ::-moz-selection,
-        #md-content ::-moz-selection {
-            background: rgba(173, 255, 47, 0.4) !important;
-            color: inherit !important;
+        ::-moz-selection {
+            background: rgba(173, 255, 47, 1) !important;
+            color: #000 !important;
         }
 
         #pdf-loading {
