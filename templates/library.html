@@ -1799,7 +1799,9 @@
                 document.getElementById('lib-translate-result').innerText = data.message;
                 document.getElementById('lib-translate-text').value = '';
                 // Save context to history
-                saveToolContext('translate', `Translated "${text}" to ${lang}: ${data.message}`);
+                const msg = `Translated "${text}" to ${lang}: ${data.message}`;
+                saveToolContext('translate', msg);
+                addMessage('ai', `<div class="card" style="opacity:0.8; padding: 8px;"><div style="font-size:.65rem;color:var(--gold);margin-bottom:4px;">&#9881; Tool Execution</div><pre style="white-space:pre-wrap;font-size:.75rem;">${escapeHtml('[TOOL RESULTS — translate] ' + msg)}</pre></div>`);
             }
         } catch (err) {
             document.getElementById('lib-translate-result').innerText = 'Failed.';
@@ -1824,7 +1826,9 @@
                 document.getElementById('lib-search-result').innerText = text;
                 document.getElementById('lib-search-query').value = '';
                 // Save context to history
-                saveToolContext('web_search', `Web Search for "${query}":\n${text}`);
+                const msg = `Web Search for "${query}":\n${text}`;
+                saveToolContext('web_search', msg);
+                addMessage('ai', `<div class="card" style="opacity:0.8; padding: 8px;"><div style="font-size:.65rem;color:var(--gold);margin-bottom:4px;">&#9881; Tool Execution</div><pre style="white-space:pre-wrap;font-size:.75rem;">${escapeHtml('[TOOL RESULTS — web_search] ' + msg)}</pre></div>`);
             }
         } catch (err) {
             document.getElementById('lib-search-result').innerText = 'Failed.';
@@ -1849,7 +1853,9 @@
                 document.getElementById('lib-pdf-url').value = '';
                 loadDocuments();
                 // Save context to history
-                saveToolContext('pdf_download', `Downloaded PDF: ${url}\n${data.message || ''}`);
+                const msg = `Downloaded PDF: ${url}\n${data.message || ''}`;
+                saveToolContext('pdf_download', msg);
+                addMessage('ai', `<div class="card" style="opacity:0.8; padding: 8px;"><div style="font-size:.65rem;color:var(--gold);margin-bottom:4px;">&#9881; Tool Execution</div><pre style="white-space:pre-wrap;font-size:.75rem;">${escapeHtml('[TOOL RESULTS — pdf_download] ' + msg)}</pre></div>`);
             }
         } catch (err) {
             document.getElementById('lib-pdf-result').innerText = 'Failed.';

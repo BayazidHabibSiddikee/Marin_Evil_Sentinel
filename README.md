@@ -30,6 +30,10 @@ Built with FastAPI, LangChain/OpenRouter, FAISS, PostgreSQL, PDF.js, and LangGra
 
 ![Settings View](static/images/screenshots/settings_view.png)
 
+![Settings - Providers configuration](assets/settings_providers.png)
+
+![Settings - Deep Mode Fallback Chain models](assets/settings_models.png)
+
 ## Overview
 
 Marin Kitagawa is a personal AI study partner with two modes:
@@ -184,7 +188,7 @@ Tools auto-send results to Marin so she responds about them in chat.
 
 ```bash
 # 1. Clone and start
-git clone <your-repo-url>
+git clone https://github.com/BayazidHabibSiddikee/Marin_Evil_Sentinel.git
 cd marin-kitagawa
 docker-compose up --build
 
@@ -201,7 +205,7 @@ The Docker setup includes:
 
 ```bash
 # 1. Clone and setup
-git clone <your-repo-url>
+git clone https://github.com/BayazidHabibSiddikee/Marin_Evil_Sentinel.git
 cd marin-kitagawa
 python3 -m venv .venv
 source .venv/bin/activate

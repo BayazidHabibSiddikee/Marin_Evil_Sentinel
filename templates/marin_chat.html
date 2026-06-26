@@ -1691,7 +1691,9 @@
                 document.getElementById('yt-result').innerText = data.error;
             } else {
                 document.getElementById('yt-result').innerText = 'Done!';
-                await saveToolContext('youtube_transcript', `Transcript from ${url}:\n\n${data.transcript || ''}`);
+                const msg = `Transcript from ${url}:\n\n${data.transcript || ''}`;
+                await saveToolContext('youtube_transcript', msg);
+                addMessage('ai', `<div class="card" style="opacity:0.8; padding: 8px;"><div style="font-size:.65rem;color:var(--gold);margin-bottom:4px;">&#9881; Tool Execution</div><pre style="white-space:pre-wrap;font-size:.75rem;">${escapeHtml('[TOOL RESULTS — youtube_transcript] ' + msg)}</pre></div>`);
                 document.getElementById('yt-url').value = '';
             }
         } catch (err) {
@@ -1715,7 +1717,9 @@
                 document.getElementById('search-result').innerText = data.error;
             } else {
                 document.getElementById('search-result').innerText = 'Done!';
-                await saveToolContext('search', `Web Search for "${query}":\n\n${data.results}`);
+                const msg = `Web Search for "${query}":\n\n${data.results}`;
+                await saveToolContext('search', msg);
+                addMessage('ai', `<div class="card" style="opacity:0.8; padding: 8px;"><div style="font-size:.65rem;color:var(--gold);margin-bottom:4px;">&#9881; Tool Execution</div><pre style="white-space:pre-wrap;font-size:.75rem;">${escapeHtml('[TOOL RESULTS — search] ' + msg)}</pre></div>`);
                 document.getElementById('search-query').value = '';
             }
         } catch (err) {
@@ -1739,7 +1743,9 @@
                 document.getElementById('pdf-result').innerText = data.error;
             } else {
                 document.getElementById('pdf-result').innerText = 'Done!';
-                await saveToolContext('download_pdf', `Downloaded PDF from ${url}\n\n${data.message}`);
+                const msg = `Downloaded PDF from ${url}\n\n${data.message}`;
+                await saveToolContext('download_pdf', msg);
+                addMessage('ai', `<div class="card" style="opacity:0.8; padding: 8px;"><div style="font-size:.65rem;color:var(--gold);margin-bottom:4px;">&#9881; Tool Execution</div><pre style="white-space:pre-wrap;font-size:.75rem;">${escapeHtml('[TOOL RESULTS — download_pdf] ' + msg)}</pre></div>`);
                 document.getElementById('pdf-url').value = '';
             }
         } catch (err) {
@@ -1818,7 +1824,9 @@
                 document.getElementById('translate-result').innerText = data.error;
             } else {
                 document.getElementById('translate-result').innerText = 'Done!';
-                await saveToolContext('translate', `Translated "${text}" to ${lang}:\n\n${data.message}`);
+                const msg = `Translated "${text}" to ${lang}:\n\n${data.message}`;
+                await saveToolContext('translate', msg);
+                addMessage('ai', `<div class="card" style="opacity:0.8; padding: 8px;"><div style="font-size:.65rem;color:var(--gold);margin-bottom:4px;">&#9881; Tool Execution</div><pre style="white-space:pre-wrap;font-size:.75rem;">${escapeHtml('[TOOL RESULTS — translate] ' + msg)}</pre></div>`);
                 document.getElementById('translate-text').value = '';
             }
         } catch (err) {

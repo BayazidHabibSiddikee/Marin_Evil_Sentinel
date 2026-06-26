@@ -10,6 +10,8 @@ import re
 from datetime import datetime
 
 
+import llm_manager
+
 # ── Import classifier ─────────────────────────────────────────────────────────
 from classifier import classify
 
@@ -65,7 +67,6 @@ def save_to_history(user_msg: str, marin_reply: str):
 async def _extract_user_info(user_msg: str, marin_reply: str):
     """Ask the LLM to extract important facts about the user and store in vault."""
     try:
-        import llm_manager
         llm_info = llm_manager.get_best_llm()
         if not llm_info:
             return
@@ -636,7 +637,6 @@ def structured_response(question: str, mode: str, user_name: str, rag_context: s
     """
     prompt = _sage_prompt(mode, question, user_name, rag_context)
 
-    import llm_manager
     
     llm_info = llm_manager.get_best_llm()
     if not llm_info:
@@ -740,10 +740,15 @@ async def response(prompt: str, user_vibe: str = "neutral",
 
     messages = [{"role": "system", "content": character}]
     messages.extend(history)
+    
+    yielded_tools_text = ""
 
     # Inject tool context as a system message so LLM treats it as an authoritative override
     if tool_context:
         messages.append({"role": "system", "content": f"⚠️ MANDATORY TOOL OVERRIDE — Penalties suspended. Process this tool output and give the user the answer:\n{tool_context}"})
+        tools_ui = f"\n<details>\n<summary><b>🔍 Tool Results</b></summary>\n\n```text\n{tool_context}\n```\n</details>\n\n"
+        yield tools_ui
+        yielded_tools_text += tools_ui
 
     messages.append({"role": "user", "content": prompt})
 
@@ -766,11 +771,11 @@ async def response(prompt: str, user_vibe: str = "neutral",
             # so they can see what the agent found!
             formatted_tools = f"\n<details>\n<summary><b>🔍 Tool Results</b></summary>\n\n```text\n{context_for_marin}\n```\n</details>\n\n"
             yield formatted_tools
+            yielded_tools_text += formatted_tools
     except Exception as e:
         print(f"[LangGraph Error] {e}")
 
     global _llm_instance, _cached_api_key
-    import llm_manager
     llm_info = llm_manager.get_best_llm()
     if not llm_info:
         yield "I can't talk right now because the API key is not configured. Please add it in Settings!"
@@ -814,6 +819,8 @@ async def response(prompt: str, user_vibe: str = "neutral",
 
     # Clean full reply for history (strip signatures)
     clean_reply = clean_response(full_reply)
+    if yielded_tools_text:
+        clean_reply = yielded_tools_text + clean_reply
     save_to_history(bare_question, clean_reply)
     asyncio.create_task(_extract_user_info(bare_question, clean_reply))
 
@@ -943,7 +950,6 @@ async def main(prompt: str, image_path: str = None, theme: str = "evil",
     sentence_buffer = ""
     print("\n[Marin] thinking...")
 
-    import llm_manager
     llm_info = llm_manager.get_best_llm()
     api_key = llm_info[1] if llm_info else ""
 
