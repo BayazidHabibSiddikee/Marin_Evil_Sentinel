@@ -703,6 +703,19 @@ class KnowledgeBase:
 
         self._create_embeddings()
         self._ensure_lc_store()
+
+        if self._lc_vectorstore is not None and self._docstore is not None:
+            ids_to_delete = []
+            for doc_id, doc in list(self._docstore._dict.items()):
+                if doc.metadata.get("source_file") == name:
+                    ids_to_delete.append(doc_id)
+            if ids_to_delete:
+                try:
+                    self._lc_vectorstore.delete(ids_to_delete)
+                    print(f"🗑️ Deleted {len(ids_to_delete)} old chunks for {name}")
+                except Exception as e:
+                    print(f"⚠️ Failed to delete old chunks: {e}")
+
         self._index_single_file(path)
         self._save_faiss()
         self._save_manifest()
