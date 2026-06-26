@@ -126,9 +126,6 @@ async def get_settings():
         "user_name": database.get_state("USER_NAME") or "Bayazid",
         "location": database.get_state("LOCATION") or "Rajshahi",
         "openrouter_key": database.get_state("OPENROUTER_API_KEY") or "",
-        "telegram_key": database.get_state("TELEGRAM_API_KEY") or "",
-        "sender_email": database.get_state("SENDER_EMAIL") or "pythonlusty@gmail.com",
-        "email_pass": database.get_state("EMAIL_PASSWORD") or "",
         "image_model": database.get_state("IMAGE_MODEL") or "black-forest-labs/flux-schnell",
         "vision_model": database.get_state("VISION_MODEL") or "",
         "selected_models": database.get_state("SELECTED_MODELS") or [],
@@ -166,9 +163,6 @@ async def save_settings(request: Request):
     database.set_state("USER_NAME", data.get("user_name", "Bayazid"))
     database.set_state("LOCATION", data.get("location", "Rajshahi"))
     if data.get("openrouter_key"): database.set_state("OPENROUTER_API_KEY", data.get("openrouter_key"))
-    if data.get("telegram_key"): database.set_state("TELEGRAM_API_KEY", data.get("telegram_key"))
-    if data.get("sender_email"): database.set_state("SENDER_EMAIL", data.get("sender_email"))
-    if data.get("email_pass"): database.set_state("EMAIL_PASSWORD", data.get("email_pass"))
     if data.get("image_model") is not None: database.set_state("IMAGE_MODEL", data.get("image_model"))
     if data.get("vision_model") is not None: database.set_state("VISION_MODEL", data.get("vision_model"))
     if data.get("selected_models") is not None: database.set_state("SELECTED_MODELS", data.get("selected_models"))
@@ -219,15 +213,7 @@ async def uninstall(request: Request):
 
     if data.get("clear_all_state"):
         try:
-            state_keys = [
-                "OPENROUTER_API_KEY", "PROVIDERS", "DEEP_MODELS", "ACTIVE_MODEL",
-                "SELECTED_MODELS", "FALLBACK_MODELS", "RATE_LIMITS",
-                "IMAGE_MODEL", "VISION_MODEL", "HF_TOKEN",
-                "TELEGRAM_API_KEY", "SENDER_EMAIL", "EMAIL_PASSWORD",
-                "PROACTIVE_STREAK", "PROACTIVE_LAST_FIRE", "PROACTIVE_LAST_USER_MSG",
-            ]
-            for k in state_keys:
-                database.set_state(k, "")
+            database.clear_all_state()
             results["state"] = "cleared"
         except Exception as e:
             results["state"] = f"error: {e}"
@@ -605,11 +591,23 @@ async def analyze_link(req: UrlRequest):
     except Exception as e:
         return {"error": str(e)}
 
+@app.post("/api/validate-key")
+async def validate_key(request: Request):
+    import llm_manager
+    data = await request.json()
+    key = data.get("key", "")
+    base_url = data.get("base_url", "https://openrouter.ai/api/v1")
+    if not key:
+        return {"valid": False, "error": "No key provided"}
+    success, message = llm_manager.validate_api_key(key, base_url)
+    return {"valid": success, "error": message if not success else "Key is valid"}
+
 @app.post("/api/tools/convert")
 async def convert_file(file: UploadFile = File(...)):
     try:
         ext = os.path.splitext(file.filename)[1].lower()
-        temp_path = f"/tmp/{file.filename}"
+        safe_filename = os.path.basename(file.filename)
+        temp_path = f"/tmp/{safe_filename}"
         with open(temp_path, "wb") as f:
             shutil.copyfileobj(file.file, f)
 
@@ -673,7 +671,8 @@ class QuizRequest(BaseModel):
 async def generate_quiz_endpoint(req: QuizRequest):
     try:
         from tools.quiz_generator import generate_quiz, render_quiz_html
-        result = generate_quiz(req.topic, req.num_questions)
+        import asyncio
+        result = await asyncio.to_thread(generate_quiz, req.topic, req.num_questions)
         # If it's __STRUCTURED__, render as HTML
         if result.startswith("__STRUCTURED__"):
             import json

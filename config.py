@@ -4,7 +4,6 @@ import os
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FAISS_DIR = os.path.join(BASE_DIR, "storage", "faiss_db")
 BOOKS_DIR = os.path.join(BASE_DIR, "books")
-CODE_DIR  = os.path.join(BASE_DIR, "code")
 
 EMBEDDING_MODEL    = "all-MiniLM-L6-v2"
 IMAGE_MODEL        = "black-forest-labs/flux-schnell"

@@ -1163,16 +1163,6 @@
                 <button class="modal-close" id="modalClose">✕</button>
             </div>
             <div class="setting-row">
-                <label class="setting-label">// OPERATOR NAME</label>
-                <input class="setting-input" id="settingName" type="text" placeholder="e.g. Bayazid" />
-                <span class="setting-hint">Updates the greeting on the landing page.</span>
-            </div>
-            <div class="setting-row">
-                <label class="setting-label">// API BASE URL</label>
-                <input class="setting-input" id="settingApi" type="text" placeholder="http://localhost:5000" />
-                <span class="setting-hint">Backend endpoint for the Marin chat interface.</span>
-            </div>
-            <div class="setting-row">
                 <label class="setting-label">// THEME ACCENT</label>
                 <input class="setting-input" id="settingAccent" type="color" value="#c0152a"
                     style="height:40px; padding:4px;" />
@@ -1229,14 +1219,10 @@
 
         // Load saved settings
         const saved = JSON.parse(localStorage.getItem('marin_settings') || '{}');
-        if (saved.name) document.getElementById('settingName').value = saved.name;
-        if (saved.api) document.getElementById('settingApi').value = saved.api;
         if (saved.accent) { document.getElementById('settingAccent').value = saved.accent; document.documentElement.style.setProperty('--crimson', saved.accent); document.documentElement.style.setProperty('--crimson2', saved.accent); }
 
         document.getElementById('modalSave').addEventListener('click', () => {
             const s = {
-                name: document.getElementById('settingName').value,
-                api: document.getElementById('settingApi').value,
                 accent: document.getElementById('settingAccent').value,
             };
             localStorage.setItem('marin_settings', JSON.stringify(s));

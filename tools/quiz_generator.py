@@ -45,6 +45,12 @@ def generate_quiz(topic: str, num_questions: int = 5, rag_context: str = "") -> 
                 raw = response.content
                 break
             except Exception as e:
+                if llm_manager.is_auth_error(e):
+                    llm_manager.report_auth_error(key)
+                    llm_info = llm_manager.get_best_llm()
+                    if not llm_info:
+                        return "Invalid API key. Please check your API key in Settings."
+                    continue
                 if "429" in str(e) or "rate limit" in str(e).lower():
                     llm_manager.report_rate_limit(key, model)
                     llm_info = llm_manager.get_best_llm()
@@ -76,23 +82,25 @@ def render_quiz_html(parsed: dict) -> str:
     topic = parsed.get("topic", "Quiz")
     questions = parsed.get("questions", [])
 
-    # Escape quotes for data attribute
-    quiz_json_str = json.dumps(parsed).replace("'", "&#39;")
+    # Escape JSON properly for data attribute
+    import html as html_lib
+    quiz_json_str = html_lib.escape(json.dumps(parsed))
 
-    html = f'<div class="quiz-container" data-quiz=\'{quiz_json_str}\' style="padding:16px;"><h2 style="color:#ff6b9d;margin-bottom:16px;">Quiz: {topic}</h2>'
+    html = f'<div class="quiz-container" data-quiz="{quiz_json_str}" style="padding:16px;"><h2 style="color:#ff6b9d;margin-bottom:16px;">Quiz: {html_lib.escape(topic)}</h2>'
 
     for i, q in enumerate(questions):
         qid = f"q{i}"
         html += f'<div class="quiz-question-block" style="background:#1a1a2e;border-radius:8px;padding:14px;margin-bottom:12px;">'
-        html += f'<div style="font-weight:600;margin-bottom:10px;">Q{i+1}: {q["question"]}</div>'
+        html += f'<div style="font-weight:600;margin-bottom:10px;">Q{i+1}: {html_lib.escape(q["question"])}</div>'
         for j, opt in enumerate(q["options"]):
             letter = chr(65 + j)
+            escaped_opt = html_lib.escape(opt)
             # The value is now the option text, not just the letter
             html += f'<label style="display:flex;align-items:center;gap:8px;padding:6px 10px;margin:3px 0;border-radius:6px;cursor:pointer;background:rgba(255,255,255,.03);" '
             html += f'onmouseover="this.style.background=\'rgba(255,107,157,.1)\'" '
             html += f'onmouseout="this.style.background=\'rgba(255,255,255,.03)\'">'
-            html += f'<input type="radio" name="{qid}" value="{opt}" style="accent-color:#ff6b9d;">'
-            html += f'<span>{letter}. {opt}</span></label>'
+            html += f'<input type="radio" name="{qid}" value="{escaped_opt}" style="accent-color:#ff6b9d;">'
+            html += f'<span>{letter}. {escaped_opt}</span></label>'
         
         html += f'<div class="quiz-explanation" style="display:none;margin-top:8px;padding:8px;border-radius:6px;font-size:.85rem;"></div>'
         html += '</div>'

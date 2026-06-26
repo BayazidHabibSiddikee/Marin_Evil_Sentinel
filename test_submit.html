@@ -1,0 +1,17 @@
+
+    <html><body>
+    <div class="quiz-container" data-quiz="{&quot;topic&quot;: &quot;Python&quot;, &quot;questions&quot;: [{&quot;question&quot;: &quot;What is Python?&quot;, &quot;options&quot;: [&quot;Snake&quot;, &quot;Language&quot;, &quot;Car&quot;, &quot;don&#x27;t&quot;], &quot;answer&quot;: &quot;Language&quot;, &quot;explanation&quot;: &quot;Because.&quot;}]}" style="padding:16px;"><h2 style="color:#ff6b9d;margin-bottom:16px;">Quiz: Python</h2><div class="quiz-question-block" style="background:#1a1a2e;border-radius:8px;padding:14px;margin-bottom:12px;"><div style="font-weight:600;margin-bottom:10px;">Q1: What is Python?</div><label style="display:flex;align-items:center;gap:8px;padding:6px 10px;margin:3px 0;border-radius:6px;cursor:pointer;background:rgba(255,255,255,.03);" onmouseover="this.style.background='rgba(255,107,157,.1)'" onmouseout="this.style.background='rgba(255,255,255,.03)'"><input type="radio" name="q0" value="Snake" style="accent-color:#ff6b9d;"><span>A. Snake</span></label><label style="display:flex;align-items:center;gap:8px;padding:6px 10px;margin:3px 0;border-radius:6px;cursor:pointer;background:rgba(255,255,255,.03);" onmouseover="this.style.background='rgba(255,107,157,.1)'" onmouseout="this.style.background='rgba(255,255,255,.03)'"><input type="radio" name="q0" value="Language" style="accent-color:#ff6b9d;"><span>B. Language</span></label><label style="display:flex;align-items:center;gap:8px;padding:6px 10px;margin:3px 0;border-radius:6px;cursor:pointer;background:rgba(255,255,255,.03);" onmouseover="this.style.background='rgba(255,107,157,.1)'" onmouseout="this.style.background='rgba(255,255,255,.03)'"><input type="radio" name="q0" value="Car" style="accent-color:#ff6b9d;"><span>C. Car</span></label><label style="display:flex;align-items:center;gap:8px;padding:6px 10px;margin:3px 0;border-radius:6px;cursor:pointer;background:rgba(255,255,255,.03);" onmouseover="this.style.background='rgba(255,107,157,.1)'" onmouseout="this.style.background='rgba(255,255,255,.03)'"><input type="radio" name="q0" value="don&#x27;t" style="accent-color:#ff6b9d;"><span>D. don&#x27;t</span></label><div class="quiz-explanation" style="display:none;margin-top:8px;padding:8px;border-radius:6px;font-size:.85rem;"></div></div><button onclick="submitQuiz(this)" style="margin-top:16px;background:#ff6b9d;color:#0f0f23;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:bold;width:100%;">Submit Quiz</button></div>
+    <div id="msg-input"></div>
+    <script>
+        const input = document.getElementById('msg-input');
+        async function saveToolContext() { return; }
+        async function sendMessage() { console.log("Sent!"); }
+        async function submitQuiz(btn) {
+            const container = btn.closest('.quiz-container');
+            const quizData = JSON.parse(container.dataset.quiz.replace(/&#39;/g, "'"));
+            console.log(quizData);
+            btn.textContent = "Done";
+        }
+    </script>
+    </body></html>
+    

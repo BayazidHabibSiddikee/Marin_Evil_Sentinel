@@ -25,9 +25,7 @@ from pydantic import BaseModel
 
 try:
     import faiss
-    from langchain_huggingface import HuggingFaceEmbeddings
     from langchain_text_splitters import RecursiveCharacterTextSplitter
-    from langchain_community.document_loaders import PyPDFLoader
     from langchain_core.documents import Document
     FAISS_AVAILABLE = True
 except ImportError:
@@ -54,17 +52,15 @@ except ImportError:
 # ═══════════════════════════════════════════════════════════════════════════════
 try:
     from config import (
-        BASE_DIR, BOOKS_DIR, CODE_DIR, FAISS_DIR,
+        BASE_DIR, BOOKS_DIR, FAISS_DIR,
         get_kb_size_mb,
         TOTAL_KB_MAX_MB, BOOKS_MAX_MB,
     )
     BOOKS_DIR = Path(BOOKS_DIR)
-    CODE_DIR = Path(CODE_DIR)
     FAISS_DIR = Path(FAISS_DIR)
 except ImportError:
     BASE_DIR  = os.path.dirname(os.path.abspath(__file__))
     BOOKS_DIR = Path(BASE_DIR) / "books"
-    CODE_DIR  = Path(BASE_DIR) / "code"
     FAISS_DIR = Path(BASE_DIR) / "storage" / "faiss_db"
     TOTAL_KB_MAX_MB = 200
     BOOKS_MAX_MB    = 96
@@ -72,11 +68,9 @@ except ImportError:
     def get_kb_size_mb():    return 0.0
 
 BOOKS_DIR.mkdir(exist_ok=True)
-CODE_DIR.mkdir(exist_ok=True)
 FAISS_DIR.mkdir(exist_ok=True, parents=True)
 
-DOC_EXTENSIONS  = {".pdf", ".docx", ".txt", ".md", ".xlsx", ".html"}
-CODE_EXTENSIONS = {".py", ".c", ".cpp", ".h", ".md"}
+DOC_EXTENSIONS  = {".pdf", ".docx", ".txt", ".md", ".xlsx", ".html", ".py", ".c", ".cpp", ".h"}
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 
 
@@ -131,6 +125,7 @@ def _lazy_embeddings():
     }
     if hf_token:
         kwargs["huggingfacehub_api_token"] = hf_token
+    from langchain_huggingface import HuggingFaceEmbeddings
     model = HuggingFaceEmbeddings(**kwargs)
     return model
 
@@ -242,8 +237,6 @@ class KnowledgeBase:
         files = []
         for ext in DOC_EXTENSIONS:
             files.extend(BOOKS_DIR.glob(f"*{ext}"))
-        for ext in CODE_EXTENSIONS:
-            files.extend(CODE_DIR.glob(f"*{ext}"))
         return sorted(set(files))
 
     def _index_new_files(self):
@@ -308,11 +301,12 @@ class KnowledgeBase:
     def _load_file(self, path: Path) -> List[Document]:
         ext         = path.suffix.lower()
         name        = path.name
-        source_type = "code" if path.parent.resolve() == CODE_DIR.resolve() else "doc"
+        source_type = "doc"
 
         if ext == ".pdf":
             # Attempt 1: normal text extraction
             try:
+                from langchain_community.document_loaders import PyPDFLoader
                 docs = PyPDFLoader(str(path)).load()
                 total_txt = sum(len(p.page_content.strip()) for p in docs)
                 if total_txt > 100:
@@ -703,6 +697,19 @@ class KnowledgeBase:
 
         self._create_embeddings()
         self._ensure_lc_store()
+
+        if self._lc_vectorstore is not None and self._docstore is not None:
+            ids_to_delete = []
+            for doc_id, doc in list(self._docstore._dict.items()):
+                if doc.metadata.get("source_file") == name:
+                    ids_to_delete.append(doc_id)
+            if ids_to_delete:
+                try:
+                    self._lc_vectorstore.delete(ids_to_delete)
+                    print(f"🗑️ Deleted {len(ids_to_delete)} old chunks for {name}")
+                except Exception as e:
+                    print(f"⚠️ Failed to delete old chunks: {e}")
+
         self._index_single_file(path)
         self._save_faiss()
         self._save_manifest()
@@ -793,7 +800,7 @@ def _check_kb_quota(upload_size_mb: float, label: str):
             f"Delete some documents or books to free space."
         )
     if label == "book":
-        current_books = get_kb_size_mb()
+        current_books = sum(f.stat().st_size for f in BOOKS_DIR.glob('*') if f.is_file()) / (1024 * 1024)
         if current_books + upload_size_mb > BOOKS_MAX_MB:
             remaining = max(0.0, BOOKS_MAX_MB - current_books)
             raise HTTPException(
@@ -803,63 +810,42 @@ def _check_kb_quota(upload_size_mb: float, label: str):
                 f"Delete some books to free space."
             )
 
-@app.post("/upload/doc")
-async def upload_doc(file: UploadFile = File(...)):
-    """Upload PDF, DOCX, TXT, or MD into books/ and index immediately."""
-    ext = Path(file.filename).suffix.lower()
-    if ext not in DOC_EXTENSIONS:
-        raise HTTPException(400, f"Unsupported type '{ext}'. Allowed: {DOC_EXTENSIONS}")
-    content = await file.read()
-    upload_size_mb = len(content) / (1024 * 1024)
-    _check_kb_quota(upload_size_mb, "book")
-    dest = BOOKS_DIR / file.filename
-    with open(dest, "wb") as f:
-        f.write(content)
-    result = await asyncio.to_thread(kb.add_file, dest)
-    return {"filename": file.filename, **result}
+
 
 @app.post("/upload/book")
 async def upload_book(file: UploadFile = File(...)):
     """Upload into books/ and index immediately. Books are hidden from the frontend UI."""
     ext = Path(file.filename).suffix.lower()
+    safe_filename = Path(file.filename).name
     if ext not in DOC_EXTENSIONS:
         raise HTTPException(400, f"Unsupported type '{ext}'. Allowed: {DOC_EXTENSIONS}")
     content = await file.read()
     upload_size_mb = len(content) / (1024 * 1024)
     _check_kb_quota(upload_size_mb, "book")
-    dest = BOOKS_DIR / file.filename
+    dest = BOOKS_DIR / safe_filename
     with open(dest, "wb") as f:
         f.write(content)
     result = await asyncio.to_thread(kb.add_file, dest)
-    return {"filename": file.filename, **result}
+    return {"filename": safe_filename, **result}
 
 
 
-@app.post("/upload/code")
-async def upload_code(file: UploadFile = File(...)):
-    """Upload PY, C, CPP, H, or MD into code/ and index immediately."""
-    ext = Path(file.filename).suffix.lower()
-    if ext not in CODE_EXTENSIONS:
-        raise HTTPException(400, f"Unsupported type '{ext}'. Allowed: {CODE_EXTENSIONS}")
-    dest = CODE_DIR / file.filename
-    with open(dest, "wb") as f:
-        shutil.copyfileobj(file.file, f)
-    result = await asyncio.to_thread(kb.add_file, dest)
-    return {"filename": file.filename, **result}
+
 
 
 @app.post("/upload/image")
 async def upload_image(file: UploadFile = File(...)):
     """Upload image into static/uploads/ for vision tasks. Not RAG-indexed."""
     ext = Path(file.filename).suffix.lower()
+    safe_filename = Path(file.filename).name
     if ext not in IMAGE_EXTENSIONS:
         raise HTTPException(400, f"Unsupported type '{ext}'. Allowed: {IMAGE_EXTENSIONS}")
     upload_dir = Path(BASE_DIR) / "static" / "uploads"
     upload_dir.mkdir(parents=True, exist_ok=True)
-    dest = upload_dir / file.filename
+    dest = upload_dir / safe_filename
     with open(dest, "wb") as f:
         shutil.copyfileobj(file.file, f)
-    return {"ok": True, "filename": file.filename, "url": f"/static/uploads/{file.filename}"}
+    return {"ok": True, "filename": safe_filename, "url": f"/static/uploads/{safe_filename}"}
 
 
 # ── Info ──────────────────────────────────────────────────────────────────────
@@ -879,7 +865,7 @@ async def health():
         "total_indexed": len(kb.manifest["indexed"]),
         "ready":         kb._raw_index is not None,
         "books_dir":     str(BOOKS_DIR),
-        "code_dir":      str(CODE_DIR),
+        "faiss_dir":     str(FAISS_DIR),
         "storage": {
             "books_mb":     bk_used,
             "total_kb_mb":  kb_used,
@@ -907,4 +893,4 @@ if __name__ == "__main__":
             print(f"⚠️ Could not set memory limit: {e}")
 
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=args.port, reload=False)
+    uvicorn.run(app, host="0.0.0.0", port=args.port, reload=False)

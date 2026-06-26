@@ -853,17 +853,8 @@
             <label class="set-label">LOCATION
                 <input id="set-location" type="text">
             </label>
-            <label class="set-label">TELEGRAM KEY
-                <input id="set-telegram" type="password" placeholder="(optional)">
-            </label>
-            <label class="set-label">SENDER EMAIL
-                <input id="set-email" type="email">
-            </label>
-            <label class="set-label">EMAIL PASSWORD
-                <input id="set-email-pass" type="password" placeholder="(app password)">
-            </label>
             <label class="set-label">VISION MODEL
-                <input id="set-vision-model" type="text" placeholder="google/gemma-4-26b-a4b-it:free">
+                <input id="set-vision-model" type="text" placeholder="meta-llama/llama-3.2-11b-vision-instruct:free">
             </label>
             <label class="set-label">IMAGE MODEL
                 <input id="set-image-model" type="text" placeholder="black-forest-labs/flux-schnell">
@@ -1199,12 +1190,52 @@
         { id: "mistralai/mistral-7b-instruct:free", name: "Mistral 7B Instruct", ctx: "33K", vision: false },
     ];
 
+    const GEMINI_MODELS = [
+        { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", ctx: "1M", vision: true },
+        { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", ctx: "2M", vision: true },
+        { id: "gemini-1.5-flash", name: "Gemini 1.5 Flash", ctx: "1M", vision: true },
+        { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro", ctx: "2M", vision: true }
+    ];
+
+    const OPENAI_MODELS = [
+        { id: "gpt-4o-mini", name: "GPT-4o Mini", ctx: "128K", vision: true },
+        { id: "gpt-4o", name: "GPT-4o", ctx: "128K", vision: true },
+        { id: "o1-mini", name: "o1-mini", ctx: "128K", vision: false },
+        { id: "o1-preview", name: "o1-preview", ctx: "128K", vision: false },
+        { id: "gpt-3.5-turbo", name: "GPT-3.5 Turbo", ctx: "16K", vision: false }
+    ];
+
+    const OLLAMA_MODELS = [
+        { id: "gemma4:31b-cloud", name: "Gemma 4 31B Cloud", ctx: "256K", vision: false },
+        { id: "llama3.2", name: "Llama 3.2 3B", ctx: "128K", vision: false },
+        { id: "qwen2.5", name: "Qwen 2.5 7B", ctx: "32K", vision: false },
+        { id: "mistral", name: "Mistral 7B", ctx: "32K", vision: false },
+        { id: "deepseek-r1", name: "DeepSeek R1", ctx: "128K", vision: false },
+        { id: "phi3", name: "Phi-3 Mini", ctx: "128K", vision: false }
+    ];
+
+    const HF_MODELS = [
+        { id: "meta-llama/Llama-3.2-3B-Instruct", name: "Llama 3.2 3B Instruct", ctx: "128K", vision: false },
+        { id: "Qwen/Qwen2.5-7B-Instruct", name: "Qwen 2.5 7B Instruct", ctx: "32K", vision: false },
+        { id: "mistralai/Mistral-7B-Instruct-v0.3", name: "Mistral 7B Instruct v0.3", ctx: "32K", vision: false },
+        { id: "google/gemma-2-2b-it", name: "Gemma 2 2B IT", ctx: "8K", vision: false },
+        { id: "microsoft/Phi-3.5-mini-instruct", name: "Phi 3.5 Mini Instruct", ctx: "128K", vision: false }
+    ];
+
+    const PRESET_MODELS = {
+        openrouter: FREE_MODELS,
+        gemini: GEMINI_MODELS,
+        openai: OPENAI_MODELS,
+        ollama: OLLAMA_MODELS,
+        hf: HF_MODELS
+    };
+
     const PROVIDER_PRESETS = {
         openrouter: { name: "OpenRouter", base_url: "https://openrouter.ai/api/v1", hasPresetModels: true },
-        openai:     { name: "OpenAI", base_url: "https://api.openai.com/v1", hasPresetModels: false },
-        gemini:     { name: "Google Gemini", base_url: "https://generativelanguage.googleapis.com/v1beta/openai/", hasPresetModels: false },
-        ollama:     { name: "Ollama Cloud", base_url: "https://api.ollama.ai/v1", hasPresetModels: false },
-        hf:         { name: "HuggingFace", base_url: "https://api-inference.huggingface.co/v1", hasPresetModels: false },
+        openai:     { name: "OpenAI", base_url: "https://api.openai.com/v1", hasPresetModels: true },
+        gemini:     { name: "Google Gemini", base_url: "https://generativelanguage.googleapis.com/v1beta/openai/", hasPresetModels: true },
+        ollama:     { name: "Ollama Cloud", base_url: "https://api.ollama.ai/v1", hasPresetModels: true },
+        hf:         { name: "HuggingFace", base_url: "https://api-inference.huggingface.co/v1", hasPresetModels: true },
         custom:     { name: "Custom", base_url: "", hasPresetModels: false },
     };
 
@@ -1233,15 +1264,24 @@
     }
 
     function renderProviderCard(p, idx, container) {
-        const isOR = p.base_url && p.base_url.includes('openrouter');
         const card = document.createElement('div');
         card.className = `provider-card${p.enabled ? ' enabled' : ''}`;
         card.dataset.idx = idx;
 
-        // Build model checkboxes for OpenRouter presets
+        // Auto-select matching preset based on base_url
+        let matchedPreset = 'custom';
+        for (const [k, v] of Object.entries(PROVIDER_PRESETS)) {
+            if (p.base_url && v.base_url && p.base_url.includes(v.base_url)) {
+                matchedPreset = k;
+                break;
+            }
+        }
+
+        // Build model checkboxes for matched preset
         let modelsHtml = '';
-        if (isOR) {
-            modelsHtml = FREE_MODELS.map(m => {
+        if (PROVIDER_PRESETS[matchedPreset] && PROVIDER_PRESETS[matchedPreset].hasPresetModels && PRESET_MODELS[matchedPreset]) {
+            const presetModels = PRESET_MODELS[matchedPreset];
+            modelsHtml = presetModels.map(m => {
                 const checked = (p.models || []).includes(m.id) ? 'checked' : '';
                 return `<label class="model-cb-row">
                     <input type="checkbox" class="prov-model-cb" value="${escapeHtml(m.id)}" ${checked}>
@@ -1259,17 +1299,9 @@
         const keysHtml = (p.api_keys || []).map(k => `
             <div style="display:flex;gap:4px;">
                 <input type="password" class="prov-key-input" value="${escapeHtml(k)}" placeholder="API key..." style="flex:1;">
+                <button onclick="testProviderKey(this)" style="background:var(--ink2);border:1px solid var(--border);color:var(--text);padding:0 8px;border-radius:var(--radius-sm);cursor:pointer;font-size:.65rem;flex-shrink:0;">Test</button>
                 <button onclick="this.parentElement.remove()" style="background:none;border:1px solid var(--border);color:var(--danger);width:26px;height:26px;border-radius:var(--radius-sm);cursor:pointer;font-size:.65rem;flex-shrink:0;">×</button>
             </div>`).join('');
-
-        // Auto-select matching preset based on base_url
-        let matchedPreset = 'custom';
-        for (const [k, v] of Object.entries(PROVIDER_PRESETS)) {
-            if (p.base_url && v.base_url && p.base_url.includes(v.base_url)) {
-                matchedPreset = k;
-                break;
-            }
-        }
 
         card.innerHTML = `
             <div class="provider-header" onclick="toggleProviderBody(this)">
@@ -1329,8 +1361,17 @@
             _providers[idx].api_keys = keys;
             
             // Sync Models
-            const isOR = (urlInput && urlInput.value.includes('openrouter')) || (_providers[idx].base_url.includes('openrouter'));
-            if (isOR) {
+            let matchedPreset = 'custom';
+            const curBaseUrl = _providers[idx].base_url;
+            for (const [k, v] of Object.entries(PROVIDER_PRESETS)) {
+                if (curBaseUrl && v.base_url && curBaseUrl.includes(v.base_url)) {
+                    matchedPreset = k;
+                    break;
+                }
+            }
+
+            const hasPreset = PROVIDER_PRESETS[matchedPreset] && PROVIDER_PRESETS[matchedPreset].hasPresetModels;
+            if (hasPreset) {
                 _providers[idx].models = Array.from(card.querySelectorAll('.prov-model-cb:checked')).map(cb => cb.value);
             } else {
                 const ta = card.querySelector('.prov-custom-models');
@@ -1364,29 +1405,95 @@
     }
 
     function addProviderKey(btn) {
-        const keysList = btn.previousElementSibling;
-        const row = document.createElement('div');
-        row.style.cssText = 'display:flex;gap:4px;';
-        row.innerHTML = `
-            <input type="password" class="prov-key-input" placeholder="API key..." style="flex:1;">
-            <button onclick="this.parentElement.remove()" style="background:none;border:1px solid var(--border);color:var(--danger);width:26px;height:26px;border-radius:var(--radius-sm);cursor:pointer;font-size:.65rem;flex-shrink:0;">×</button>`;
-        keysList.appendChild(row);
+        syncProvidersFromDOM();
+        const card = btn.closest('.provider-card');
+        const idx = parseInt(card.dataset.idx, 10);
+        _providers[idx].api_keys.push("");
+        renderProviders();
+        
+        // Focus the newly added input
+        setTimeout(() => {
+            const newCards = document.querySelectorAll('.provider-card');
+            if (newCards[idx]) {
+                const inputs = newCards[idx].querySelectorAll('.prov-key-input');
+                if (inputs.length > 0) inputs[inputs.length - 1].focus();
+            }
+        }, 50);
+    }
+
+    async function testProviderKey(btn) {
+        const input = btn.parentElement.querySelector('.prov-key-input');
+        const key = input.value.trim();
+        const card = btn.closest('.provider-card');
+        const baseUrl = card.querySelector('.prov-base-url').value.trim();
+        
+        if (!key) return;
+        
+        const oldText = btn.textContent;
+        btn.textContent = '...';
+        btn.disabled = true;
+        
+        // Remove old result span if exists
+        const oldSpan = btn.parentElement.querySelector('.test-result-msg');
+        if (oldSpan) oldSpan.remove();
+
+        const msgSpan = document.createElement('span');
+        msgSpan.className = 'test-result-msg';
+        msgSpan.style.fontSize = '0.65rem';
+        msgSpan.style.alignSelf = 'center';
+        msgSpan.style.marginLeft = '5px';
+        btn.parentElement.appendChild(msgSpan);
+
+        try {
+            const res = await fetch('/api/validate-key', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key, base_url: baseUrl })
+            });
+            const data = await res.json();
+            if (data.valid) {
+                btn.textContent = '✓';
+                btn.style.color = '#4caf50';
+                btn.title = data.error || 'Valid';
+                msgSpan.style.color = '#4caf50';
+                msgSpan.textContent = data.error || 'Valid';
+            } else {
+                btn.textContent = '✗';
+                btn.style.color = 'var(--danger)';
+                btn.title = data.error || 'Invalid';
+                msgSpan.style.color = 'var(--danger)';
+                msgSpan.textContent = data.error || 'Invalid';
+            }
+        } catch (e) {
+            btn.textContent = '!';
+            btn.style.color = 'var(--danger)';
+            btn.title = 'Network error';
+            msgSpan.style.color = 'var(--danger)';
+            msgSpan.textContent = 'Network error';
+        }
+        
+        btn.disabled = false;
+        setTimeout(() => {
+            if (btn.textContent === '✓' || btn.textContent === '✗' || btn.textContent === '!') {
+                btn.textContent = 'Test';
+                btn.style.color = 'var(--text)';
+            }
+        }, 3000);
     }
 
     function applyProviderPreset(select, idx) {
         const preset = PROVIDER_PRESETS[select.value];
         if (!preset) return;
-        const card = select.closest('.provider-card');
-        card.querySelector('.prov-base-url').value = preset.base_url;
-        card.querySelector('.prov-name').value = preset.name;
-        // Update the backing _providers so re-renders don't wipe changes
+        syncProvidersFromDOM();
         if (_providers[idx]) {
             _providers[idx].base_url = preset.base_url;
             _providers[idx].name = preset.name;
         }
-        // Update the header name immediately so user sees the change
-        const headerName = card.querySelector('.provider-name');
-        if (headerName) headerName.textContent = `#${idx+1} ${preset.name}`;
+        renderProviders();
+        const cards = document.querySelectorAll('.provider-card');
+        if (cards[idx]) {
+            cards[idx].querySelector('.provider-body').classList.remove('collapsed');
+        }
     }
 
     function addProvider() {
@@ -1480,6 +1587,9 @@
             const parts = Object.entries(data.results || {}).map(([k, v]) => `${k}: ${v}`);
             resultEl.textContent = parts.length ? parts.join(' | ') : 'Done.';
             resultEl.style.color = 'var(--success)';
+            if (flags.clear_all_state && data.status === "ok") {
+                setTimeout(() => window.location.href = '/', 1000);
+            }
         } catch (e) {
             resultEl.textContent = 'Failed: ' + e.message;
             resultEl.style.color = 'var(--danger)';
@@ -1503,9 +1613,6 @@
             }
             document.getElementById('set-image-model').value = data.image_model || '';
             document.getElementById('set-vision-model').value = data.vision_model || '';
-            document.getElementById('set-telegram').value = data.telegram_key || '';
-            document.getElementById('set-email').value = data.sender_email || '';
-            document.getElementById('set-email-pass').value = data.email_pass || '';
             document.getElementById('set-hf-token').value = data.hf_token || '';
 
             // Providers
@@ -1534,9 +1641,6 @@
             location: document.getElementById('set-location').value,
             image_model: document.getElementById('set-image-model').value,
             vision_model: document.getElementById('set-vision-model').value,
-            telegram_key: document.getElementById('set-telegram').value,
-            sender_email: document.getElementById('set-email').value,
-            email_pass: document.getElementById('set-email-pass').value,
             hf_token: document.getElementById('set-hf-token').value,
             providers: collectProvidersFromDOM(),
             deep_models: collectDeepModelsFromDOM(),
@@ -1645,7 +1749,9 @@
                 document.getElementById('yt-result').innerText = data.error;
             } else {
                 document.getElementById('yt-result').innerText = 'Done!';
-                await saveToolContext('youtube_transcript', `Transcript from ${url}:\n\n${data.transcript || ''}`);
+                const msg = `Transcript from ${url}:\n\n${data.transcript || ''}`;
+                await saveToolContext('youtube_transcript', msg);
+                addMessage('ai', `<div class="card" style="opacity:0.8; padding: 8px;"><div style="font-size:.65rem;color:var(--gold);margin-bottom:4px;">&#9881; Tool Execution</div><pre style="white-space:pre-wrap;font-size:.75rem;">${escapeHtml('[TOOL RESULTS — youtube_transcript] ' + msg)}</pre></div>`);
                 document.getElementById('yt-url').value = '';
             }
         } catch (err) {
@@ -1669,7 +1775,9 @@
                 document.getElementById('search-result').innerText = data.error;
             } else {
                 document.getElementById('search-result').innerText = 'Done!';
-                await saveToolContext('search', `Web Search for "${query}":\n\n${data.results}`);
+                const msg = `Web Search for "${query}":\n\n${data.results}`;
+                await saveToolContext('search', msg);
+                addMessage('ai', `<div class="card" style="opacity:0.8; padding: 8px;"><div style="font-size:.65rem;color:var(--gold);margin-bottom:4px;">&#9881; Tool Execution</div><pre style="white-space:pre-wrap;font-size:.75rem;">${escapeHtml('[TOOL RESULTS — search] ' + msg)}</pre></div>`);
                 document.getElementById('search-query').value = '';
             }
         } catch (err) {
@@ -1693,7 +1801,9 @@
                 document.getElementById('pdf-result').innerText = data.error;
             } else {
                 document.getElementById('pdf-result').innerText = 'Done!';
-                await saveToolContext('download_pdf', `Downloaded PDF from ${url}\n\n${data.message}`);
+                const msg = `Downloaded PDF from ${url}\n\n${data.message}`;
+                await saveToolContext('download_pdf', msg);
+                addMessage('ai', `<div class="card" style="opacity:0.8; padding: 8px;"><div style="font-size:.65rem;color:var(--gold);margin-bottom:4px;">&#9881; Tool Execution</div><pre style="white-space:pre-wrap;font-size:.75rem;">${escapeHtml('[TOOL RESULTS — download_pdf] ' + msg)}</pre></div>`);
                 document.getElementById('pdf-url').value = '';
             }
         } catch (err) {
@@ -1742,9 +1852,11 @@
             if (data.error) {
                 document.getElementById('quiz-result').innerText = data.error;
             } else {
-                document.getElementById('quiz-result').innerText = 'Done!';
                 if (data.format === 'html') {
+                    document.getElementById('quiz-result').innerText = 'Done!';
                     addMessage('ai', data.quiz);
+                } else {
+                    document.getElementById('quiz-result').innerText = data.quiz;
                 }
                 document.getElementById('quiz-topic').value = '';
             }
@@ -1770,7 +1882,9 @@
                 document.getElementById('translate-result').innerText = data.error;
             } else {
                 document.getElementById('translate-result').innerText = 'Done!';
-                await saveToolContext('translate', `Translated "${text}" to ${lang}:\n\n${data.message}`);
+                const msg = `Translated "${text}" to ${lang}:\n\n${data.message}`;
+                await saveToolContext('translate', msg);
+                addMessage('ai', `<div class="card" style="opacity:0.8; padding: 8px;"><div style="font-size:.65rem;color:var(--gold);margin-bottom:4px;">&#9881; Tool Execution</div><pre style="white-space:pre-wrap;font-size:.75rem;">${escapeHtml('[TOOL RESULTS — translate] ' + msg)}</pre></div>`);
                 document.getElementById('translate-text').value = '';
             }
         } catch (err) {

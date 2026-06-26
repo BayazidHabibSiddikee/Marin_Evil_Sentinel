@@ -20,7 +20,7 @@ _pool = None
 def get_pool():
     global _pool
     if _pool is None:
-        _pool = ThreadedConnectionPool(1, 20,
+        _pool = ThreadedConnectionPool(5, 50,
             dbname=DB_NAME,
             user=DB_USER,
             password=DB_PASSWORD,
@@ -306,6 +306,12 @@ def get_state(key: str, default: Any = None) -> Any:
         return json.loads(row["value"])
     except Exception:
         return row["value"]
+
+def clear_all_state():
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM user_state")
+        conn.commit()
 
 # ── Penalties API ────────────────────────────────────────────────────────────
 

@@ -6,7 +6,10 @@ from typing import AsyncGenerator
 
 import database
 
-IDLE_INTERVALS = [1200, 1200, 2400, 7200, 7200, 18000, 172800]  # 20m, 20m, 40m, 2h, 2h, 5h, 2d
+import random
+
+# Intervals are determined dynamically in _can_fire
+# IDLE_INTERVALS = [1200, 1200, 2400, 7200, 7200, 18000, 172800]  # Old static list
 QUIET_START = dtime(1, 0)
 QUIET_END = dtime(6, 0)
 CHECK_INTERVAL = 90
@@ -80,9 +83,18 @@ def _can_fire(agent: str) -> bool:
     now = time.time()
     last_act = max(_last_user_msg_time.get(agent, 0), _last_proactive_time.get(agent, 0))
     count = _streak_count.get(agent, 0)
-    if count >= len(IDLE_INTERVALS): return False
+    if count > 5: return False
     
-    if now - last_act >= IDLE_INTERVALS[count]:
+    interval = 172800
+    if count < 3:
+        rng = random.Random(int(last_act))
+        interval = rng.randint(600, 1200) # 10 to 20 mins
+    elif count == 3:
+        interval = 7200 # 2 hours
+    elif count == 4:
+        interval = 18000 # 5 hours
+        
+    if now - last_act >= interval:
         return True
     return False
 
@@ -133,9 +145,12 @@ async def _generate_proactive(agent: str) -> str:
             _save_persistent_state(agent)
             return text
     except Exception as e:
-        print(f"Proactive error: {e}")
-        if "429" in str(e) or "rate limit" in str(e).lower():
-            llm_manager.report_rate_limit(llm_info[1], llm_info[2])
+        if hasattr(llm_manager, 'is_auth_error') and llm_manager.is_auth_error(e):
+            print(f"[Proactive] Invalid API key — proactive messages disabled")
+        else:
+            print(f"Proactive error: {e}")
+            if "429" in str(e) or "rate limit" in str(e).lower():
+                llm_manager.report_rate_limit(llm_info[1], llm_info[2])
     return None
 
 async def proactive_broadcaster(agent: str = "marin"):
