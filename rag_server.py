@@ -52,17 +52,15 @@ except ImportError:
 # ═══════════════════════════════════════════════════════════════════════════════
 try:
     from config import (
-        BASE_DIR, BOOKS_DIR, CODE_DIR, FAISS_DIR,
+        BASE_DIR, BOOKS_DIR, FAISS_DIR,
         get_kb_size_mb,
         TOTAL_KB_MAX_MB, BOOKS_MAX_MB,
     )
     BOOKS_DIR = Path(BOOKS_DIR)
-    CODE_DIR = Path(CODE_DIR)
     FAISS_DIR = Path(FAISS_DIR)
 except ImportError:
     BASE_DIR  = os.path.dirname(os.path.abspath(__file__))
     BOOKS_DIR = Path(BASE_DIR) / "books"
-    CODE_DIR  = Path(BASE_DIR) / "code"
     FAISS_DIR = Path(BASE_DIR) / "storage" / "faiss_db"
     TOTAL_KB_MAX_MB = 200
     BOOKS_MAX_MB    = 96
@@ -70,7 +68,6 @@ except ImportError:
     def get_kb_size_mb():    return 0.0
 
 BOOKS_DIR.mkdir(exist_ok=True)
-CODE_DIR.mkdir(exist_ok=True)
 FAISS_DIR.mkdir(exist_ok=True, parents=True)
 
 DOC_EXTENSIONS  = {".pdf", ".docx", ".txt", ".md", ".xlsx", ".html", ".py", ".c", ".cpp", ".h"}
@@ -240,8 +237,6 @@ class KnowledgeBase:
         files = []
         for ext in DOC_EXTENSIONS:
             files.extend(BOOKS_DIR.glob(f"*{ext}"))
-        for ext in CODE_EXTENSIONS:
-            files.extend(CODE_DIR.glob(f"*{ext}"))
         return sorted(set(files))
 
     def _index_new_files(self):
@@ -306,7 +301,7 @@ class KnowledgeBase:
     def _load_file(self, path: Path) -> List[Document]:
         ext         = path.suffix.lower()
         name        = path.name
-        source_type = "code" if path.parent.resolve() == CODE_DIR.resolve() else "doc"
+        source_type = "doc"
 
         if ext == ".pdf":
             # Attempt 1: normal text extraction
@@ -870,7 +865,7 @@ async def health():
         "total_indexed": len(kb.manifest["indexed"]),
         "ready":         kb._raw_index is not None,
         "books_dir":     str(BOOKS_DIR),
-        "code_dir":      str(CODE_DIR),
+        "faiss_dir":     str(FAISS_DIR),
         "storage": {
             "books_mb":     bk_used,
             "total_kb_mb":  kb_used,
