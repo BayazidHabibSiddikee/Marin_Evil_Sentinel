@@ -73,8 +73,7 @@ BOOKS_DIR.mkdir(exist_ok=True)
 CODE_DIR.mkdir(exist_ok=True)
 FAISS_DIR.mkdir(exist_ok=True, parents=True)
 
-DOC_EXTENSIONS  = {".pdf", ".docx", ".txt", ".md", ".xlsx", ".html"}
-CODE_EXTENSIONS = {".py", ".c", ".cpp", ".h", ".md"}
+DOC_EXTENSIONS  = {".pdf", ".docx", ".txt", ".md", ".xlsx", ".html", ".py", ".c", ".cpp", ".h"}
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 
 
@@ -816,63 +815,42 @@ def _check_kb_quota(upload_size_mb: float, label: str):
                 f"Delete some books to free space."
             )
 
-@app.post("/upload/doc")
-async def upload_doc(file: UploadFile = File(...)):
-    """Upload PDF, DOCX, TXT, or MD into books/ and index immediately."""
-    ext = Path(file.filename).suffix.lower()
-    if ext not in DOC_EXTENSIONS:
-        raise HTTPException(400, f"Unsupported type '{ext}'. Allowed: {DOC_EXTENSIONS}")
-    content = await file.read()
-    upload_size_mb = len(content) / (1024 * 1024)
-    _check_kb_quota(upload_size_mb, "book")
-    dest = BOOKS_DIR / file.filename
-    with open(dest, "wb") as f:
-        f.write(content)
-    result = await asyncio.to_thread(kb.add_file, dest)
-    return {"filename": file.filename, **result}
+
 
 @app.post("/upload/book")
 async def upload_book(file: UploadFile = File(...)):
     """Upload into books/ and index immediately. Books are hidden from the frontend UI."""
     ext = Path(file.filename).suffix.lower()
+    safe_filename = Path(file.filename).name
     if ext not in DOC_EXTENSIONS:
         raise HTTPException(400, f"Unsupported type '{ext}'. Allowed: {DOC_EXTENSIONS}")
     content = await file.read()
     upload_size_mb = len(content) / (1024 * 1024)
     _check_kb_quota(upload_size_mb, "book")
-    dest = BOOKS_DIR / file.filename
+    dest = BOOKS_DIR / safe_filename
     with open(dest, "wb") as f:
         f.write(content)
     result = await asyncio.to_thread(kb.add_file, dest)
-    return {"filename": file.filename, **result}
+    return {"filename": safe_filename, **result}
 
 
 
-@app.post("/upload/code")
-async def upload_code(file: UploadFile = File(...)):
-    """Upload PY, C, CPP, H, or MD into code/ and index immediately."""
-    ext = Path(file.filename).suffix.lower()
-    if ext not in CODE_EXTENSIONS:
-        raise HTTPException(400, f"Unsupported type '{ext}'. Allowed: {CODE_EXTENSIONS}")
-    dest = CODE_DIR / file.filename
-    with open(dest, "wb") as f:
-        shutil.copyfileobj(file.file, f)
-    result = await asyncio.to_thread(kb.add_file, dest)
-    return {"filename": file.filename, **result}
+
 
 
 @app.post("/upload/image")
 async def upload_image(file: UploadFile = File(...)):
     """Upload image into static/uploads/ for vision tasks. Not RAG-indexed."""
     ext = Path(file.filename).suffix.lower()
+    safe_filename = Path(file.filename).name
     if ext not in IMAGE_EXTENSIONS:
         raise HTTPException(400, f"Unsupported type '{ext}'. Allowed: {IMAGE_EXTENSIONS}")
     upload_dir = Path(BASE_DIR) / "static" / "uploads"
     upload_dir.mkdir(parents=True, exist_ok=True)
-    dest = upload_dir / file.filename
+    dest = upload_dir / safe_filename
     with open(dest, "wb") as f:
         shutil.copyfileobj(file.file, f)
-    return {"ok": True, "filename": file.filename, "url": f"/static/uploads/{file.filename}"}
+    return {"ok": True, "filename": safe_filename, "url": f"/static/uploads/{safe_filename}"}
 
 
 # ── Info ──────────────────────────────────────────────────────────────────────

@@ -71,6 +71,8 @@ def _analyze_webpage(url: str, timestamp: str) -> str:
         from bs4 import BeautifulSoup
         import urllib.request
         
+        if not url.startswith(("http://", "https://")):
+            return "Error: Only HTTP and HTTPS URLs are supported."
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
         with urllib.request.urlopen(req) as response:
             html = response.read()

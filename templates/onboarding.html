@@ -140,21 +140,6 @@
             </div>
 
             <div class="form-group">
-                <label>Telegram API Key (Optional)</label>
-                <input type="password" id="telegram_key" placeholder="bot token">
-            </div>
-            
-            <div class="form-group">
-                <label>Sender Email (Optional)</label>
-                <input type="email" id="sender_email" placeholder="your.email@gmail.com">
-            </div>
-
-            <div class="form-group">
-                <label>Email App Password (Optional)</label>
-                <input type="password" id="email_pass" placeholder="16-char app password">
-            </div>
-            
-            <div class="form-group">
                 <label>Image Gen Model (OpenRouter)</label>
                 <input type="text" id="image_model" value="black-forest-labs/flux-schnell">
             </div>
@@ -184,9 +169,6 @@
                     
                     if (data.user_name) document.getElementById("user_name").value = data.user_name;
                     if (data.location) document.getElementById("location").value = data.location;
-                    if (data.telegram_key) document.getElementById("telegram_key").value = data.telegram_key;
-                    if (data.sender_email) document.getElementById("sender_email").value = data.sender_email;
-                    if (data.email_pass) document.getElementById("email_pass").value = data.email_pass;
                     if (data.image_model) document.getElementById("image_model").value = data.image_model;
 
                     if (data.openrouter_key) {
@@ -246,9 +228,6 @@
                 user_name: document.getElementById("user_name").value,
                 location: document.getElementById("location").value,
                 openrouter_key: document.getElementById("openrouter_key").value,
-                telegram_key: document.getElementById("telegram_key").value,
-                sender_email: document.getElementById("sender_email").value,
-                email_pass: document.getElementById("email_pass").value,
                 image_model: document.getElementById("image_model").value
             };
             submitSettings(data);

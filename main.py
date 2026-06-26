@@ -126,9 +126,6 @@ async def get_settings():
         "user_name": database.get_state("USER_NAME") or "Bayazid",
         "location": database.get_state("LOCATION") or "Rajshahi",
         "openrouter_key": database.get_state("OPENROUTER_API_KEY") or "",
-        "telegram_key": database.get_state("TELEGRAM_API_KEY") or "",
-        "sender_email": database.get_state("SENDER_EMAIL") or "pythonlusty@gmail.com",
-        "email_pass": database.get_state("EMAIL_PASSWORD") or "",
         "image_model": database.get_state("IMAGE_MODEL") or "black-forest-labs/flux-schnell",
         "vision_model": database.get_state("VISION_MODEL") or "",
         "selected_models": database.get_state("SELECTED_MODELS") or [],
@@ -166,9 +163,6 @@ async def save_settings(request: Request):
     database.set_state("USER_NAME", data.get("user_name", "Bayazid"))
     database.set_state("LOCATION", data.get("location", "Rajshahi"))
     if data.get("openrouter_key"): database.set_state("OPENROUTER_API_KEY", data.get("openrouter_key"))
-    if data.get("telegram_key"): database.set_state("TELEGRAM_API_KEY", data.get("telegram_key"))
-    if data.get("sender_email"): database.set_state("SENDER_EMAIL", data.get("sender_email"))
-    if data.get("email_pass"): database.set_state("EMAIL_PASSWORD", data.get("email_pass"))
     if data.get("image_model") is not None: database.set_state("IMAGE_MODEL", data.get("image_model"))
     if data.get("vision_model") is not None: database.set_state("VISION_MODEL", data.get("vision_model"))
     if data.get("selected_models") is not None: database.set_state("SELECTED_MODELS", data.get("selected_models"))
@@ -612,7 +606,8 @@ async def validate_key(request: Request):
 async def convert_file(file: UploadFile = File(...)):
     try:
         ext = os.path.splitext(file.filename)[1].lower()
-        temp_path = f"/tmp/{file.filename}"
+        safe_filename = os.path.basename(file.filename)
+        temp_path = f"/tmp/{safe_filename}"
         with open(temp_path, "wb") as f:
             shutil.copyfileobj(file.file, f)
 

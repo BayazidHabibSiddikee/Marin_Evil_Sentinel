@@ -317,14 +317,9 @@ def validate_api_key(key: str, base_url: str = "https://openrouter.ai/api/v1") -
     try:
         from langchain_core.tools import tool
         @tool
-        def dummy_email_tool(to: str, message: str) -> str:
-            """Sends an email."""
-            return "Sent"
-            
-        @tool
-        def dummy_telegram_tool(message: str) -> str:
-            """Sends a telegram message."""
-            return "Sent"
+        def dummy_search_tool(query: str) -> str:
+            """Searches the web for the given query."""
+            return "Found results"
 
         llm = ChatOpenAI(
             model=test_model,
@@ -338,11 +333,11 @@ def validate_api_key(key: str, base_url: str = "https://openrouter.ai/api/v1") -
         
         # Test tool calling
         try:
-            llm_with_tools = llm.bind_tools([dummy_email_tool, dummy_telegram_tool])
+            llm_with_tools = llm.bind_tools([dummy_search_tool])
             llm_with_tools.invoke([HumanMessage(content="hi")])
             tool_msg = " (Tool calling supported)"
         except Exception:
-            tool_msg = " (Valid, but this model might not support tools like Email/Telegram)"
+            tool_msg = " (Valid, but this model might not support tools)"
             
         return True, f"Key is valid{tool_msg}"
     except Exception as e:

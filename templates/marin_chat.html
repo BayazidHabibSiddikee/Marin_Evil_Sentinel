@@ -853,15 +853,6 @@
             <label class="set-label">LOCATION
                 <input id="set-location" type="text">
             </label>
-            <label class="set-label">TELEGRAM KEY
-                <input id="set-telegram" type="password" placeholder="(optional)">
-            </label>
-            <label class="set-label">SENDER EMAIL
-                <input id="set-email" type="email">
-            </label>
-            <label class="set-label">EMAIL PASSWORD
-                <input id="set-email-pass" type="password" placeholder="(app password)">
-            </label>
             <label class="set-label">VISION MODEL
                 <input id="set-vision-model" type="text" placeholder="meta-llama/llama-3.2-11b-vision-instruct:free">
             </label>
@@ -1622,9 +1613,6 @@
             }
             document.getElementById('set-image-model').value = data.image_model || '';
             document.getElementById('set-vision-model').value = data.vision_model || '';
-            document.getElementById('set-telegram').value = data.telegram_key || '';
-            document.getElementById('set-email').value = data.sender_email || '';
-            document.getElementById('set-email-pass').value = data.email_pass || '';
             document.getElementById('set-hf-token').value = data.hf_token || '';
 
             // Providers
@@ -1653,9 +1641,6 @@
             location: document.getElementById('set-location').value,
             image_model: document.getElementById('set-image-model').value,
             vision_model: document.getElementById('set-vision-model').value,
-            telegram_key: document.getElementById('set-telegram').value,
-            sender_email: document.getElementById('set-email').value,
-            email_pass: document.getElementById('set-email-pass').value,
             hf_token: document.getElementById('set-hf-token').value,
             providers: collectProvidersFromDOM(),
             deep_models: collectDeepModelsFromDOM(),
