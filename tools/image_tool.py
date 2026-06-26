@@ -71,9 +71,16 @@ def generate_image(prompt: str) -> str:
                                 f.write(base64.b64decode(b64))
                             return f"/static/generated/{filename}"
                 except requests.exceptions.HTTPError as e:
+                    if hasattr(llm_manager, 'is_auth_error') and llm_manager.is_auth_error(e):
+                        llm_manager.report_auth_error(key)
+                        print(f"[Image Tool] Invalid API key: {e}")
+                        continue
                     if "429" in str(e):
                         llm_manager.report_rate_limit(key, model)
                         continue
-                except Exception:
+                except Exception as e:
+                    if hasattr(llm_manager, 'is_auth_error') and llm_manager.is_auth_error(e):
+                        llm_manager.report_auth_error(key)
+                        print(f"[Image Tool] Invalid API key: {e}")
                     continue
     return "Failed: All image models exhausted. Try again later."

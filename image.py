@@ -88,6 +88,15 @@ def response(prompt: str, image_path=None):
                     yield piece
             break
         except Exception as e:
+            if llm_manager.is_auth_error(e):
+                llm_manager.report_auth_error(key)
+                llm_info = llm_manager.get_best_llm()
+                if not llm_info:
+                    yield "\n[Leo] Invalid API key. Please update in Settings."
+                    return
+                _, key, current_model = llm_info
+                reply = ""
+                continue
             llm_manager.report_rate_limit(key, current_model)
             print(f"\n[Leo] Error on {current_model} ({e}). Retrying with new key/model...")
             llm_info = llm_manager.get_best_llm()

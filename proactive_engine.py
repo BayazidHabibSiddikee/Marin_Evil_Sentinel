@@ -133,9 +133,12 @@ async def _generate_proactive(agent: str) -> str:
             _save_persistent_state(agent)
             return text
     except Exception as e:
-        print(f"Proactive error: {e}")
-        if "429" in str(e) or "rate limit" in str(e).lower():
-            llm_manager.report_rate_limit(llm_info[1], llm_info[2])
+        if hasattr(llm_manager, 'is_auth_error') and llm_manager.is_auth_error(e):
+            print(f"[Proactive] Invalid API key — proactive messages disabled")
+        else:
+            print(f"Proactive error: {e}")
+            if "429" in str(e) or "rate limit" in str(e).lower():
+                llm_manager.report_rate_limit(llm_info[1], llm_info[2])
     return None
 
 async def proactive_broadcaster(agent: str = "marin"):

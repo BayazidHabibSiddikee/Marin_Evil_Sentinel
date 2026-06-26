@@ -436,11 +436,11 @@
             cursor: text;
         }
         .pdf-text-layer ::selection {
-            background: var(--selection-bg, rgba(255, 235, 59, 0.4)) !important;
+            background: rgba(173, 255, 47, 0.6) !important;
             color: transparent !important;
         }
         .pdf-text-layer ::-moz-selection {
-            background: var(--selection-bg, rgba(255, 235, 59, 0.4)) !important;
+            background: rgba(173, 255, 47, 0.6) !important;
             color: transparent !important;
         }
         .viewer ::selection,
@@ -1708,15 +1708,76 @@
             const data = await res.json();
             if (data.error) {
                 document.getElementById('lib-quiz-result').innerText = data.error;
-            } else {
-                // BUG 2 fix: render actual quiz HTML
+            } else if (data.format === 'html') {
                 document.getElementById('lib-quiz-result').innerHTML = data.quiz;
                 document.getElementById('lib-quiz-topic').value = '';
-                // Save context to history so Marin can see it later, but DON'T trigger her immediately
                 saveToolContext('quiz', `Quiz on ${topic}: generated\n\n${data.quiz}`);
+            } else {
+                document.getElementById('lib-quiz-result').innerText = data.quiz;
             }
         } catch (err) {
             document.getElementById('lib-quiz-result').innerText = 'Failed.';
+        }
+    }
+
+    async function submitQuiz(btn) {
+        if (btn.disabled) return;
+        const container = btn.closest('.quiz-container');
+        const quizData = JSON.parse(container.dataset.quiz.replace(/&#39;/g, "'"));
+        const questions = quizData.questions;
+        
+        let correctCount = 0;
+        let mistakes = [];
+        
+        const qBlocks = container.querySelectorAll('.quiz-question-block');
+        qBlocks.forEach((block, i) => {
+            const q = questions[i];
+            const qid = `q${i}`;
+            const selected = block.querySelector(`input[name="${qid}"]:checked`);
+            const explanation = block.querySelector('.quiz-explanation');
+            const allLabels = block.querySelectorAll('label');
+            
+            let userAnsOpt = selected ? selected.value : "No Answer";
+            
+            let ans = String(q.answer).trim();
+            let correctOptStr = ans;
+            if (ans.length === 1 && ans >= 'A' && ans <= 'D') {
+                const idx = ans.charCodeAt(0) - 65;
+                if (q.options[idx]) correctOptStr = q.options[idx];
+            } else {
+                 const match = ans.match(/^[A-D][\.\)]\s*(.*)/);
+                 if (match) correctOptStr = match[1];
+            }
+            
+            const isCorrect = selected && (userAnsOpt === correctOptStr || userAnsOpt === ans || ans.startsWith(userAnsOpt) || userAnsOpt.startsWith(ans));
+            
+            allLabels.forEach(l => {
+                const input = l.querySelector('input');
+                input.disabled = true;
+                const isThisCorrect = (input.value === correctOptStr || input.value === ans || ans.startsWith(input.value) || input.value.startsWith(ans));
+                if (isThisCorrect) l.style.background = 'rgba(76,175,80,.2)';
+                else if (input.checked && !isCorrect) l.style.background = 'rgba(244,67,54,.2)';
+            });
+            
+            explanation.style.display = 'block';
+            explanation.style.background = isCorrect ? 'rgba(76,175,80,.15)' : 'rgba(244,67,54,.15)';
+            explanation.style.color = isCorrect ? '#4caf50' : '#f44336';
+            explanation.textContent = isCorrect ? 'Correct!' : 'Incorrect. The answer is ' + correctOptStr + '. ' + (q.explanation || '');
+            
+            if (isCorrect) {
+                correctCount++;
+            } else {
+                mistakes.push(`Q: ${q.question}\nUser picked: ${userAnsOpt}\nCorrect answer: ${correctOptStr}\nExplanation: ${q.explanation || 'None'}`);
+            }
+        });
+        
+        btn.textContent = `Score: ${correctCount} / ${questions.length}`;
+        btn.disabled = true;
+        
+        const summary = `I just completed the quiz on "${quizData.topic}".\nMy Score: ${correctCount}/${questions.length}.\n\n${mistakes.length > 0 ? "My mistakes:\n" + mistakes.join("\n\n") : "I got a perfect score!"}\n\nPlease review my performance and give me feedback.`;
+        
+        if (typeof saveToolContext === 'function') {
+            await saveToolContext('quiz_result', summary);
         }
     }
 

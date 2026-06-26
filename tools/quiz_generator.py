@@ -45,6 +45,12 @@ def generate_quiz(topic: str, num_questions: int = 5, rag_context: str = "") -> 
                 raw = response.content
                 break
             except Exception as e:
+                if llm_manager.is_auth_error(e):
+                    llm_manager.report_auth_error(key)
+                    llm_info = llm_manager.get_best_llm()
+                    if not llm_info:
+                        return "Invalid API key. Please check your API key in Settings."
+                    continue
                 if "429" in str(e) or "rate limit" in str(e).lower():
                     llm_manager.report_rate_limit(key, model)
                     llm_info = llm_manager.get_best_llm()

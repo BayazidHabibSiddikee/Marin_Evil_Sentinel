@@ -605,6 +605,17 @@ async def analyze_link(req: UrlRequest):
     except Exception as e:
         return {"error": str(e)}
 
+@app.post("/api/validate-key")
+async def validate_key(request: Request):
+    import llm_manager
+    data = await request.json()
+    key = data.get("key", "")
+    base_url = data.get("base_url", "https://openrouter.ai/api/v1")
+    if not key:
+        return {"valid": False, "error": "No key provided"}
+    success, message = llm_manager.validate_api_key(key, base_url)
+    return {"valid": success, "error": message if not success else "Key is valid"}
+
 @app.post("/api/tools/convert")
 async def convert_file(file: UploadFile = File(...)):
     try:
@@ -673,7 +684,8 @@ class QuizRequest(BaseModel):
 async def generate_quiz_endpoint(req: QuizRequest):
     try:
         from tools.quiz_generator import generate_quiz, render_quiz_html
-        result = generate_quiz(req.topic, req.num_questions)
+        import asyncio
+        result = await asyncio.to_thread(generate_quiz, req.topic, req.num_questions)
         # If it's __STRUCTURED__, render as HTML
         if result.startswith("__STRUCTURED__"):
             import json

@@ -136,7 +136,10 @@ async def node_strategist(state: AgentState) -> dict:
         match = re.search(r'\[\s*\{.*\}\s*\]', resp.content, re.DOTALL)
         plan = json.loads(match.group(0)) if match else [{"action": "respond", "args": {}, "rationale": resp.content}]
     except Exception as e:
-        print(f"Strategist error: {e}")
+        if hasattr(llm_manager, 'is_auth_error') and llm_manager.is_auth_error(e):
+            print(f"[Strategist] Invalid API key — tool planning disabled")
+        else:
+            print(f"Strategist error: {e}")
         plan = [{"action": "respond", "args": {}, "rationale": "Proceeding without tools due to error."}]
     
     return {"plan": plan}

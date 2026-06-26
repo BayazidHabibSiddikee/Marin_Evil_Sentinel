@@ -15,7 +15,16 @@ FALLBACK_MODELS = [
 COOLDOWN_SECONDS = 5 * 3600  # 5 hours
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://host.docker.internal:11434")
 
-# ── Rate limit helpers ──────────────────────────────────────────────────────────
+_invalid_keys = set()
+
+# ── Auth & Rate limit helpers ───────────────────────────────────────────────────
+def is_auth_error(e: Exception) -> bool:
+    err_str = str(e).lower()
+    return any(x in err_str for x in ["401", "unauthorized", "invalid api key", "authentication", "user not found"])
+
+def report_auth_error(key: str):
+    if key:
+        _invalid_keys.add(key)
 def _get_rate_limits() -> dict:
     raw = database.get_state("RATE_LIMITS", "{}")
     if isinstance(raw, dict):
@@ -154,6 +163,8 @@ def get_best_llm(deep: bool = False):
                 continue
             for model in deep_model_ids:
                 for key in api_keys:
+                    if key in _invalid_keys:
+                        continue
                     if not _is_rate_limited(key, model, limits, now):
                         try:
                             llm = ChatOpenAI(
@@ -178,6 +189,8 @@ def get_best_llm(deep: bool = False):
             continue
         for model in models:
             for key in api_keys:
+                if key in _invalid_keys:
+                    continue
                 if not _is_rate_limited(key, model, limits, now):
                     try:
                         llm = ChatOpenAI(
@@ -203,3 +216,28 @@ def get_best_llm(deep: bool = False):
         pass
 
     return None
+
+def validate_api_key(key: str, base_url: str = "https://openrouter.ai/api/v1") -> tuple[bool, str]:
+    """Lightweight test request to validate an API key."""
+    if not key:
+        return False, "No key provided"
+    
+    # Remove from invalid set to allow re-testing
+    _invalid_keys.discard(key)
+    
+    try:
+        llm = ChatOpenAI(
+            model="google/gemini-2.5-flash:free", # Fast, free model usually available
+            openai_api_key=key,
+            openai_api_base=base_url,
+            max_retries=0,
+            timeout=5.0
+        )
+        from langchain_core.messages import HumanMessage
+        llm.invoke([HumanMessage(content="hi")])
+        return True, "Key is valid"
+    except Exception as e:
+        if is_auth_error(e):
+            _invalid_keys.add(key)
+            return False, "Invalid API key or authentication failed."
+        return False, f"Connection failed: {str(e)}"

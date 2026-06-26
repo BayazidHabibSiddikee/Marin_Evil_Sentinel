@@ -104,7 +104,10 @@ async def _extract_user_info(user_msg: str, marin_reply: str):
             if facts:
                 print(f"[Vault] Extracted {len(facts)} facts about user")
     except Exception as e:
-        print(f"[Vault Extract Error] {e}")
+        if llm_manager.is_auth_error(e):
+            print(f"[Vault] Invalid API key - skipping extraction")
+        else:
+            print(f"[Vault Extract Error] {e}")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -651,6 +654,15 @@ def structured_response(question: str, mode: str, user_name: str, rag_context: s
                     full_raw += piece
             break
         except Exception as e:
+            if llm_manager.is_auth_error(e):
+                llm_manager.report_auth_error(key)
+                llm_info = llm_manager.get_best_llm()
+                if not llm_info:
+                    yield '{"error": "Invalid API key. Please update your key in Settings."}'
+                    return
+                llm, key, model = llm_info
+                full_raw = ""
+                continue
             if "429" in str(e) or "rate limit" in str(e).lower():
                 llm_manager.report_rate_limit(key, model)
                 print(f"[Fallback] Rate limit hit on {model}. Retrying...")
@@ -776,6 +788,16 @@ async def response(prompt: str, user_vibe: str = "neutral",
                     yield piece
             break
         except Exception as e:
+            if llm_manager.is_auth_error(e):
+                llm_manager.report_auth_error(key)
+                print(f"[Fallback] Invalid API key on {model} ({e}). Retrying with next model...")
+                llm_info = llm_manager.get_best_llm()
+                if not llm_info:
+                    yield "\n[System: Invalid API key. Please update your key in Settings.]"
+                    return
+                _llm_instance, key, model = llm_info
+                continue
+
             # Mark it as rate limited / failed so we skip it for now and try the next provider
             llm_manager.report_rate_limit(key, model)
             print(f"[Fallback] Error on {model} ({e}). Retrying with next model...")

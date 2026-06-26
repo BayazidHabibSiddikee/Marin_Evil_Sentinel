@@ -1259,6 +1259,7 @@
         const keysHtml = (p.api_keys || []).map(k => `
             <div style="display:flex;gap:4px;">
                 <input type="password" class="prov-key-input" value="${escapeHtml(k)}" placeholder="API key..." style="flex:1;">
+                <button onclick="testProviderKey(this)" style="background:var(--ink2);border:1px solid var(--border);color:var(--text);padding:0 8px;border-radius:var(--radius-sm);cursor:pointer;font-size:.65rem;flex-shrink:0;">Test</button>
                 <button onclick="this.parentElement.remove()" style="background:none;border:1px solid var(--border);color:var(--danger);width:26px;height:26px;border-radius:var(--radius-sm);cursor:pointer;font-size:.65rem;flex-shrink:0;">×</button>
             </div>`).join('');
 
@@ -1369,8 +1370,53 @@
         row.style.cssText = 'display:flex;gap:4px;';
         row.innerHTML = `
             <input type="password" class="prov-key-input" placeholder="API key..." style="flex:1;">
+            <button onclick="testProviderKey(this)" style="background:var(--ink2);border:1px solid var(--border);color:var(--text);padding:0 8px;border-radius:var(--radius-sm);cursor:pointer;font-size:.65rem;flex-shrink:0;">Test</button>
             <button onclick="this.parentElement.remove()" style="background:none;border:1px solid var(--border);color:var(--danger);width:26px;height:26px;border-radius:var(--radius-sm);cursor:pointer;font-size:.65rem;flex-shrink:0;">×</button>`;
         keysList.appendChild(row);
+    }
+
+    async function testProviderKey(btn) {
+        const input = btn.parentElement.querySelector('.prov-key-input');
+        const key = input.value.trim();
+        const card = btn.closest('.provider-card');
+        const baseUrl = card.querySelector('.prov-base-url').value.trim();
+        
+        if (!key) return;
+        
+        const oldText = btn.textContent;
+        btn.textContent = '...';
+        btn.disabled = true;
+        
+        try {
+            const res = await fetch('/api/validate-key', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key, base_url: baseUrl })
+            });
+            const data = await res.json();
+            if (data.valid) {
+                btn.textContent = '✓';
+                btn.style.color = '#4caf50';
+                btn.title = data.error || 'Valid';
+            } else {
+                btn.textContent = '✗';
+                btn.style.color = 'var(--danger)';
+                btn.title = data.error || 'Invalid';
+                alert('Key validation failed: ' + data.error);
+            }
+        } catch (e) {
+            btn.textContent = '!';
+            btn.style.color = 'var(--danger)';
+            btn.title = 'Network error';
+        }
+        
+        btn.disabled = false;
+        setTimeout(() => {
+            if (btn.textContent === '✓' || btn.textContent === '✗' || btn.textContent === '!') {
+                btn.textContent = 'Test';
+                btn.style.color = 'var(--text)';
+            }
+        }, 3000);
     }
 
     function applyProviderPreset(select, idx) {
@@ -1742,9 +1788,11 @@
             if (data.error) {
                 document.getElementById('quiz-result').innerText = data.error;
             } else {
-                document.getElementById('quiz-result').innerText = 'Done!';
                 if (data.format === 'html') {
+                    document.getElementById('quiz-result').innerText = 'Done!';
                     addMessage('ai', data.quiz);
+                } else {
+                    document.getElementById('quiz-result').innerText = data.quiz;
                 }
                 document.getElementById('quiz-topic').value = '';
             }

@@ -51,7 +51,20 @@ Respond ONLY with valid JSON in this exact format:
         vibe = result.get("user_vibe", "neutral")
         
         return {"intent": intent, "user_vibe": vibe}
-        
     except Exception as e:
-        print(f"[Classifier] LLM Error: {e}")
+        if llm_manager.is_auth_error(e):
+            llm_manager.report_auth_error(key)
+            llm_info = llm_manager.get_best_llm(deep=False)
+            if llm_info:
+                try:
+                    llm, key, model = llm_info
+                    resp = await asyncio.to_thread(llm.invoke, [HumanMessage(content=prompt)])
+                    content = resp.content.replace("```json", "").replace("```", "").strip()
+                    result = json.loads(content)
+                    return {"intent": result.get("intent", "chat"), "user_vibe": result.get("user_vibe", "neutral")}
+                except Exception as e2:
+                    print(f"[Classifier] Retry Error: {e2}")
+            print(f"[Classifier] Invalid API key - defaulting to chat")
+        else:
+            print(f"[Classifier] LLM Error: {e}")
         return {"intent": "chat", "user_vibe": "neutral"}
