@@ -25,9 +25,7 @@ from pydantic import BaseModel
 
 try:
     import faiss
-    from langchain_huggingface import HuggingFaceEmbeddings
     from langchain_text_splitters import RecursiveCharacterTextSplitter
-    from langchain_community.document_loaders import PyPDFLoader
     from langchain_core.documents import Document
     FAISS_AVAILABLE = True
 except ImportError:
@@ -131,6 +129,7 @@ def _lazy_embeddings():
     }
     if hf_token:
         kwargs["huggingfacehub_api_token"] = hf_token
+    from langchain_huggingface import HuggingFaceEmbeddings
     model = HuggingFaceEmbeddings(**kwargs)
     return model
 
@@ -313,6 +312,7 @@ class KnowledgeBase:
         if ext == ".pdf":
             # Attempt 1: normal text extraction
             try:
+                from langchain_community.document_loaders import PyPDFLoader
                 docs = PyPDFLoader(str(path)).load()
                 total_txt = sum(len(p.page_content.strip()) for p in docs)
                 if total_txt > 100:
@@ -793,7 +793,7 @@ def _check_kb_quota(upload_size_mb: float, label: str):
             f"Delete some documents or books to free space."
         )
     if label == "book":
-        current_books = get_kb_size_mb()
+        current_books = sum(f.stat().st_size for f in BOOKS_DIR.glob('*') if f.is_file()) / (1024 * 1024)
         if current_books + upload_size_mb > BOOKS_MAX_MB:
             remaining = max(0.0, BOOKS_MAX_MB - current_books)
             raise HTTPException(

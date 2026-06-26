@@ -70,15 +70,17 @@ def response(prompt: str, image_path=None):
     current_model = vision_model
     for attempt in range(max_retries):
         try:
-            base_url = llm_info[0].openai_api_base
-            llm = ChatOpenAI(
-                model=current_model,
-                openai_api_key=key,
-                openai_api_base=base_url,
-                temperature=0.7,
-                streaming=True,
-                max_retries=0
-            )
+            base_url = getattr(llm_info[0], 'openai_api_base', None) or getattr(llm_info[0], 'base_url', None)
+            kwargs = {
+                "model": current_model,
+                "openai_api_key": key,
+                "temperature": 0.7,
+                "streaming": True,
+                "max_retries": 2
+            }
+            if base_url:
+                kwargs["openai_api_base"] = str(base_url)
+            llm = ChatOpenAI(**kwargs)
             for chunk in llm.stream(messages):
                 piece = chunk.content
                 if piece:
@@ -86,19 +88,14 @@ def response(prompt: str, image_path=None):
                     yield piece
             break
         except Exception as e:
-            if "429" in str(e) or "rate limit" in str(e).lower():
-                llm_manager.report_rate_limit(key, current_model)
-                print(f"\n[Leo] Rate limit on {current_model}. Retrying with new key/model...")
-                llm_info = llm_manager.get_best_llm()
-                if not llm_info:
-                    yield "\n[System: All API keys exhausted due to rate limits]"
-                    return
-                _, key, current_model = llm_info
-                reply = ""
-            else:
-                print(f"\n[Leo] Error: {e}")
-                yield f"[Error: {e}]"
+            llm_manager.report_rate_limit(key, current_model)
+            print(f"\n[Leo] Error on {current_model} ({e}). Retrying with new key/model...")
+            llm_info = llm_manager.get_best_llm()
+            if not llm_info:
+                yield f"\n[System: All API keys/models exhausted or failed. Last error: {e}]"
                 return
+            _, key, current_model = llm_info
+            reply = ""
     else:
         yield "\n[System: All vision models exhausted]"
 

@@ -38,7 +38,6 @@ except ImportError:
 # ── Config ────────────────────────────────────────────────────────────────────
 from config import BASE_DIR, BOOKS_DIR, FAISS_DIR
 VIBE_FILE = os.path.join(BASE_DIR, "vibe_state.json")
-from text_extractor import extract_text_from_file
 
 os.makedirs(BOOKS_DIR,  exist_ok=True)
 os.makedirs(FAISS_DIR, exist_ok=True)
@@ -47,7 +46,6 @@ os.makedirs(FAISS_DIR, exist_ok=True)
 # POSTGRESQL HISTORY
 # ══════════════════════════════════════════════════════════════════════════════
 import database
-database.init_db()
 
 def load_history(limit: int = 30) -> list:
     """Load last N message pairs from PostgreSQL."""
@@ -469,10 +467,11 @@ async def analyze_image(image_path: str) -> str:
     return f"The user showed you an image. Visual description: {description}"
 
 
+_rag_client = _RemoteRAG()
+
 def get_rag_context(query: str, k: int = 5) -> str:
     """Fetch context from the remote RAG server."""
-    rag = _RemoteRAG()
-    results = rag.search(query, k=k)
+    results = _rag_client.search(query, k=k)
     if not results:
         return ""
     
@@ -777,17 +776,14 @@ async def response(prompt: str, user_vibe: str = "neutral",
                     yield piece
             break
         except Exception as e:
-            if "429" in str(e) or "rate limit" in str(e).lower():
-                llm_manager.report_rate_limit(key, model)
-                print(f"[Fallback] Rate limit hit on {model}. Retrying...")
-                llm_info = llm_manager.get_best_llm()
-                if not llm_info:
-                    yield "\n[System: All API keys/models exhausted due to rate limits]"
-                    return
-                _llm_instance, key, model = llm_info
-            else:
-                yield f"\n[Error: {e}]"
+            # Mark it as rate limited / failed so we skip it for now and try the next provider
+            llm_manager.report_rate_limit(key, model)
+            print(f"[Fallback] Error on {model} ({e}). Retrying with next model...")
+            llm_info = llm_manager.get_best_llm()
+            if not llm_info:
+                yield f"\n[System: All API keys/models exhausted or failed. Last error: {e}]"
                 return
+            _llm_instance, key, model = llm_info
 
     # Clean full reply for history (strip signatures)
     clean_reply = clean_response(full_reply)

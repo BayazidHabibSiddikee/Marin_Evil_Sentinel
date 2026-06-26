@@ -130,7 +130,8 @@ async def node_strategist(state: AgentState) -> dict:
         
         # Keep recent context for strategist
         recent_msgs = list(state["messages"])[-5:]
-        resp = await llm.ainvoke([sys_msg] + recent_msgs)
+        import asyncio
+        resp = await asyncio.to_thread(llm.invoke, [sys_msg] + recent_msgs)
         
         match = re.search(r'\[\s*\{.*\}\s*\]', resp.content, re.DOTALL)
         plan = json.loads(match.group(0)) if match else [{"action": "respond", "args": {}, "rationale": resp.content}]

@@ -4,16 +4,12 @@ from langchain_openai import ChatOpenAI
 
 # ── Legacy fallback model list ──────────────────────────────────────────────────
 FALLBACK_MODELS = [
-    "google/gemma-4-31b-it:free",
-    "google/gemma-4-26b-a4b-it:free",
-    "qwen/qwen3-coder:free",
-    "qwen/qwen-2.5-72b-instruct:free",
+    "google/gemini-2.5-flash:free",
+    "google/gemini-2.5-pro:free",
     "meta-llama/llama-3.3-70b-instruct:free",
-    "qwen/qwen3-next-80b-a3b-instruct:free",
-    "liquid/lfm-40b:free",
+    "qwen/qwen-2.5-72b-instruct:free",
     "nousresearch/hermes-3-llama-3.1-405b:free",
-    "nvidia/nemotron-nano-9b-v2:free",
-    "google/gemma-2-9b-it:free",
+    "nvidia/llama-3.1-nemotron-70b-instruct:free",
 ]
 
 COOLDOWN_SECONDS = 5 * 3600  # 5 hours
@@ -114,12 +110,10 @@ def get_deep_models() -> list:
             pass
     # Default deep models — moderate speed, good quality
     return [
-        "google/gemma-4-26b-a4b-it:free",
+        "google/gemini-2.5-flash:free",
         "qwen/qwen-2.5-72b-instruct:free",
-        "qwen/qwen3-coder-480b-a35b:free",
         "nousresearch/hermes-3-llama-3.1-405b:free",
         "meta-llama/llama-3.3-70b-instruct:free",
-        "liquid/lfm-40b:free",
     ]
 
 def save_deep_models(models: list):
@@ -166,7 +160,7 @@ def get_best_llm(deep: bool = False):
                                 model=model,
                                 openai_api_key=key,
                                 openai_api_base=base_url,
-                                max_retries=0
+                                max_retries=2
                             )
                             return llm, key, model
                         except Exception:
@@ -190,7 +184,7 @@ def get_best_llm(deep: bool = False):
                             model=model,
                             openai_api_key=key,
                             openai_api_base=base_url,
-                            max_retries=0
+                            max_retries=2
                         )
                         return llm, key, model
                     except Exception:
@@ -202,7 +196,7 @@ def get_best_llm(deep: bool = False):
             model="marin:latest",
             openai_api_key="ollama",
             openai_api_base=OLLAMA_URL,
-            max_retries=0
+            max_retries=2
         )
         return llm, "ollama", "marin:latest"
     except Exception:

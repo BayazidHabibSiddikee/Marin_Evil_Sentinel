@@ -20,7 +20,7 @@ _pool = None
 def get_pool():
     global _pool
     if _pool is None:
-        _pool = ThreadedConnectionPool(1, 20,
+        _pool = ThreadedConnectionPool(5, 50,
             dbname=DB_NAME,
             user=DB_USER,
             password=DB_PASSWORD,
