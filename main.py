@@ -219,15 +219,7 @@ async def uninstall(request: Request):
 
     if data.get("clear_all_state"):
         try:
-            state_keys = [
-                "OPENROUTER_API_KEY", "PROVIDERS", "DEEP_MODELS", "ACTIVE_MODEL",
-                "SELECTED_MODELS", "FALLBACK_MODELS", "RATE_LIMITS",
-                "IMAGE_MODEL", "VISION_MODEL", "HF_TOKEN",
-                "TELEGRAM_API_KEY", "SENDER_EMAIL", "EMAIL_PASSWORD",
-                "PROACTIVE_STREAK", "PROACTIVE_LAST_FIRE", "PROACTIVE_LAST_USER_MSG",
-            ]
-            for k in state_keys:
-                database.set_state(k, "")
+            database.clear_all_state()
             results["state"] = "cleared"
         except Exception as e:
             results["state"] = f"error: {e}"

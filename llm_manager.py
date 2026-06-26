@@ -4,11 +4,10 @@ import os
 import database
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
-
 # ── Legacy fallback model list ──────────────────────────────────────────────────
 FALLBACK_MODELS = [
-    "google/gemini-2.5-flash:free",
-    "google/gemini-2.5-pro:free",
+    "google/gemini-2.5-flash",
+    "google/gemini-2.5-pro",
     "meta-llama/llama-3.3-70b-instruct:free",
     "qwen/qwen-2.5-72b-instruct:free",
     "nousresearch/hermes-3-llama-3.1-405b:free",
@@ -168,7 +167,7 @@ def get_deep_models() -> list:
         except Exception:
             pass
     return [
-        "google/gemini-2.5-flash:free",
+        "google/gemini-2.5-flash",
         "qwen/qwen-2.5-72b-instruct:free",
         "nousresearch/hermes-3-llama-3.1-405b:free",
         "meta-llama/llama-3.3-70b-instruct:free",
@@ -305,16 +304,47 @@ def validate_api_key(key: str, base_url: str = "https://openrouter.ai/api/v1") -
         invalid.discard(key)
         _save_invalid_keys(invalid)
 
+    test_model = "google/gemini-2.5-flash"
+    if "generativelanguage.googleapis.com" in base_url:
+        test_model = "gemini-2.5-flash"
+    elif "api.openai.com" in base_url:
+        test_model = "gpt-4o-mini"
+    elif "api-inference.huggingface.co" in base_url:
+        test_model = "meta-llama/Llama-3.2-3B-Instruct"
+    elif "api.ollama.ai" in base_url or "localhost" in base_url or "127.0.0.1" in base_url:
+        test_model = "llama3.2"
+
     try:
+        from langchain_core.tools import tool
+        @tool
+        def dummy_email_tool(to: str, message: str) -> str:
+            """Sends an email."""
+            return "Sent"
+            
+        @tool
+        def dummy_telegram_tool(message: str) -> str:
+            """Sends a telegram message."""
+            return "Sent"
+
         llm = ChatOpenAI(
-            model="google/gemini-2.5-flash:free",
+            model=test_model,
             openai_api_key=key,
             openai_api_base=base_url,
             max_retries=0,
             timeout=10.0,
         )
+        # Test basic connection
         llm.invoke([HumanMessage(content="hi")])
-        return True, "Key is valid"
+        
+        # Test tool calling
+        try:
+            llm_with_tools = llm.bind_tools([dummy_email_tool, dummy_telegram_tool])
+            llm_with_tools.invoke([HumanMessage(content="hi")])
+            tool_msg = " (Tool calling supported)"
+        except Exception:
+            tool_msg = " (Valid, but this model might not support tools like Email/Telegram)"
+            
+        return True, f"Key is valid{tool_msg}"
     except Exception as e:
         if is_auth_error(e):
             invalid = _get_invalid_keys()

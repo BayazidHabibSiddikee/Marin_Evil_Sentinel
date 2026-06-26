@@ -307,6 +307,12 @@ def get_state(key: str, default: Any = None) -> Any:
     except Exception:
         return row["value"]
 
+def clear_all_state():
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM user_state")
+        conn.commit()
+
 # ── Penalties API ────────────────────────────────────────────────────────────
 
 def assign_penalty(task: str):
